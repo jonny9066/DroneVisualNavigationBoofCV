@@ -41,9 +41,12 @@ import georegression.struct.homography.Homography2D_F64;
 import georegression.struct.point.Point2D_F64;
 import georegression.struct.shapes.Quadrilateral_F64;
 
+import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.logging.Logger;
 /**
  * Example of how to create a mosaic from a video sequence using StitchingFromMotion2D. Mosaics work best
@@ -104,6 +107,7 @@ public class MyMotionFromMosiac {
 		// get location and log
 		Point2D_F64 location = getCenterFromCorners(stitch.getImageCorners(frame.width, frame.height, null));
 		logLocation(location);
+
 		// Create the GUI for displaying the results + input image
 		ImageGridPanel gui = new ImageGridPanel(1, 2);
 		gui.setImage(0, 0, new BufferedImage(frame.width, frame.height, BufferedImage.TYPE_INT_RGB));
@@ -114,11 +118,17 @@ public class MyMotionFromMosiac {
 
 		boolean enlarged = false;
 
+		int num_frames = 0;
 		// process the video sequence one frame at a time
 		while (video.hasNext()) {
 			frame = video.next();
+
+			// stitch only every 10 frames
+			num_frames += 1;
+			if(num_frames % 10 != 0){continue;}
+
 			if (!stitch.process(frame))
-				throw new RuntimeException("You should handle failures");
+				throw new RuntimeException("Stitching failed.");
 
 			// if the current image is close to the image border recenter the mosaic
 			Quadrilateral_F64 corners = stitch.getImageCorners(frame.width, frame.height, null);
@@ -145,6 +155,26 @@ public class MyMotionFromMosiac {
 					gui.setImage(0, 1, new BufferedImage(widthNew, heightNew, BufferedImage.TYPE_INT_RGB));
 				}
 				corners = stitch.getImageCorners(frame.width, frame.height, null);
+
+
+			}
+			// get location (in pixels) and log every 10 frames
+			if(num_frames %10 == 0) {
+				location = getCenterFromCorners(stitch.getImageCorners(frame.width, frame.height, null));
+				logLocation(location);
+			}
+			Planar<GrayF32> stitchedImage = stitch.getStitchedImage();
+			BufferedImage imageRegularFormat = ConvertBufferedImage.convertTo_F32(stitchedImage, null, true);
+			// save mosiac every 300 frames
+			if(num_frames%300 == 0) {
+				try {
+					String imageName = "mosiacVideo " + (int) (num_frames / 300) + ".png";
+					// Save the image to disk
+					saveImage(imageRegularFormat, "resources/output_mosiac/" + imageName);
+					logger.info("saved image: " + imageName);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
 			// display the mosaic
 			ConvertBufferedImage.convertTo(frame, gui.getImage(0, 0), true);
@@ -176,6 +206,15 @@ public class MyMotionFromMosiac {
 		Point2D_F64 c = corners.c;
 //		Point2D_F64 d = corners.d;
 		return new Point2D_F64((a.x+c.x)/2, (a.y+c.y)/2);
+	}
+	public static void saveImage(BufferedImage image, String outputPath) throws IOException {
+		File outputFile = new File(outputPath);
+
+		// Get the file extension from the output path
+		String formatName = outputPath.substring(outputPath.lastIndexOf('.') + 1);
+
+		// Save the image to the specified file
+		ImageIO.write(image, formatName, outputFile);
 	}
 
 	/**
