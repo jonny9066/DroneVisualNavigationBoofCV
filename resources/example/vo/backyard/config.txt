@@ -1,0 +1,3 @@
+stereo.yaml
+left.mjpeg
+right.mjpeg

@@ -1,0 +1,170 @@
+# Serialized boofcv.abst.scene.ConfigFeatureToSceneRecognition
+BoofCV.GIT_SHA: 769d3b60b3b58da2eb2606022c6a9495685e52cc
+BoofCV.Version: '0.42'
+boofcv.abst.scene.ConfigFeatureToSceneRecognition:
+  maxImagePixels: 307200
+  features:
+    detectSift:
+      extract:
+        useStrictRule: true
+        ignoreBorder: 1
+        detectMinimums: true
+        detectMaximums: true
+        threshold: 0.004
+        radius: 2
+      maxFeaturesPerScale: 0
+      maxFeaturesAll: 500
+      selector:
+        randomSeed: -1
+        uniform:
+          regionScaleFactor: 2.0
+          minCellLength: 5
+        type: SELECT_N
+      edgeR: 19.1
+    orientation:
+      slidingIntegral:
+        sampleWidth: 6
+        windowSize: 1.0471975511965976
+        objectRadiusToScale: 0.5
+        samplePeriod: 0.65
+        radius: 8
+        weightSigma: -1.0
+      type: SLIDING
+      averageIntegral:
+        sampleWidth: 6
+        objectRadiusToScale: 0.5
+        radius: 6
+        samplePeriod: 1.0
+        weightSigma: -1.0
+    typeDescribe: SURF_STABLE
+    scaleSpaceSift:
+      numScales: 3
+      firstOctave: 0
+      lastOctave: 5
+      sigma0: 3.5
+    typeDetector: FAST_HESSIAN
+    detectPoint:
+      general:
+        useStrictRule: true
+        ignoreBorder: 0
+        detectMinimums: false
+        detectMaximums: true
+        selector:
+          randomSeed: -1
+          uniform:
+            regionScaleFactor: 2.0
+            minCellLength: 5
+          type: SELECT_N
+        threshold: 0.0
+        radius: 1
+        maxFeatures: -1
+      fast:
+        pixelTol: 20
+        minContinuous: 9
+      scaleRadius: 10.0
+      shiTomasi:
+        radius: 1
+        weighted: false
+      harris:
+        kappa: 0.04
+        radius: 2
+        weighted: false
+      type: SHI_TOMASI
+    convertDescriptor:
+      outputData: F32
+    describeSift:
+      weightingSigmaFraction: 0.5
+      maxDescriptorElementValue: 0.25
+      sigmaToPixels: 1.54
+      numHistogramBins: 8
+      widthSubregion: 4
+      widthGrid: 4
+    describeTemplate:
+      width: 11
+      type: NCC
+      height: 11
+    describeSurfFast:
+      widthLargeGrid: 4
+      widthSubRegion: 5
+      widthSample: 3.0
+      useHaar: false
+      weightSigma: 4.5
+    describeSurfStability:
+      overLap: 2
+      widthLargeGrid: 4
+      widthSubRegion: 5
+      sigmaLargeGrid: 2.5
+      widthSample: 3.0
+      useHaar: false
+      sigmaSubRegion: 2.5
+    describeBrief:
+      numPoints: 512
+      blurRadius: 4
+      fixed: false
+      blurSigma: -1.0
+      radius: 16
+    detectFastHessian:
+      numberOfOctaves: 4
+      extract:
+        useStrictRule: true
+        ignoreBorder: 0
+        detectMinimums: false
+        detectMaximums: true
+        threshold: 0.01
+        radius: 2
+      initialSampleStep: 1
+      initialSize: 9
+      numberScalesPerOctave: 4
+      scaleStepSize: 6
+      maxFeaturesPerScale: 0
+      maxFeaturesAll: 500
+      selector:
+        randomSeed: -1
+        uniform:
+          regionScaleFactor: 2.0
+          minCellLength: 5
+        type: SELECT_N
+  typeRecognize: NISTER_2006
+  recognizeNeighbor:
+    numberOfWords: 10000
+    distanceNorm: L1
+    kmeans:
+      maxIterations: 30
+      reseedAfterIterations: 30
+      convergeTol: 1.0E-8
+      maxReSeed: 0
+      initializer: PLUS_PLUS
+    randSeed: -559038737
+    nearestNeighbor:
+      randomSeed: 66
+      kdtree:
+        maxNodesSearched: 2147483647
+      randomForest:
+        numTrees: 10
+        maxNodesSearched: 200
+        numConsiderSplit: 5
+      type: RANDOM_FOREST
+  recognizeNister2006:
+    learningMinimumPointsForChildren:
+      length: 20.0
+      fraction: -1.0
+    distanceNorm: L1
+    queryMaximumImagesInNode:
+      length: 5000.0
+      fraction: 0.002
+    kmeans:
+      maxIterations: 30
+      reseedAfterIterations: 30
+      convergeTol: 1.0E-8
+      maxReSeed: 0
+      initializer: PLUS_PLUS
+    minimumDepthFromRoot: 2
+    tree:
+      maximumLevel: 4
+      branchFactor: 20
+    randSeed: -559038737
+    learningMaximumImagesInNode:
+      length: 1.0
+      fraction: 1.0
+    learnNodeWeights: true
+    featureSingleWordHops: 2147483647
