@@ -100,6 +100,8 @@ public class MyMotionFromMosiac {
 		stitch.configure(frame.width, frame.height, shrink);
 		// process the first frame
 		stitch.process(frame);
+
+		// get location and log
 		Point2D_F64 location = getCenterFromCorners(stitch.getImageCorners(frame.width, frame.height, null));
 		logLocation(location);
 		// Create the GUI for displaying the results + input image
