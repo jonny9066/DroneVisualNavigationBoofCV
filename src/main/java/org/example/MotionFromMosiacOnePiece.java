@@ -30,15 +30,12 @@ import boofcv.factory.tracker.FactoryPointTracker;
 import boofcv.gui.image.ImageGridPanel;
 import boofcv.gui.image.ShowImages;
 import boofcv.io.MediaManager;
-import boofcv.io.UtilIO;
 import boofcv.io.image.ConvertBufferedImage;
 import boofcv.io.image.SimpleImageSequence;
 import boofcv.io.wrapper.DefaultMediaManager;
-import boofcv.misc.BoofMiscOps;
 import boofcv.struct.image.GrayF32;
 import boofcv.struct.image.ImageType;
 import boofcv.struct.image.Planar;
-import georegression.struct.affine.Affine2D_F64;
 import georegression.struct.homography.Homography2D_F64;
 import georegression.struct.point.Point2D_F64;
 import georegression.struct.shapes.Quadrilateral_F64;
@@ -46,10 +43,10 @@ import georegression.struct.shapes.Quadrilateral_F64;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.logging.Logger;
+
 /**
  * Example of how to create a mosaic from a video sequence using StitchingFromMotion2D. Mosaics work best
  * when the scene being observed is far away or a flat surface. The camera motion should typically be rotational only,
@@ -59,8 +56,8 @@ import java.util.logging.Logger;
  *
  * @author Peter Abeles
  */
-public class MyMotionFromMosiac {
-	private static final Logger logger = Logger.getLogger(MyMotionFromMosiac.class.getName());
+public class MotionFromMosiacOnePiece {
+	private static final Logger logger = Logger.getLogger(MotionFromMosiacOnePiece.class.getName());
 	private static final int SHRINK_VIDEO_FACTOR = 6;
 	private static final int SKIPPED_FRAMES = 30;
 
@@ -94,12 +91,12 @@ public class MyMotionFromMosiac {
 
 		// Load an image sequence
 		MediaManager media = DefaultMediaManager.INSTANCE;
-//		String fileName = UtilIO.pathExample("mosaic/airplane01.mjpeg");
+
 		String fileName = "resources/drone_foot_trim.mp4";
 		SimpleImageSequence<Planar<GrayF32>> video =
 				media.openVideo(fileName, ImageType.pl(3, GrayF32.class));
 
-		// jon: change input size druing runtime
+		// yoni: change input size druing runtime
 		Planar<GrayF32> frame = shrinkImage(video.next(), SHRINK_VIDEO_FACTOR);
 
 		// shrink the input image and center it
@@ -118,6 +115,7 @@ public class MyMotionFromMosiac {
 
 		// Create the GUI for displaying the results + input image
 		ImageGridPanel gui = new ImageGridPanel(1, 2);
+		// (0,0) for input, (0,1) for mosiac
 		gui.setImage(0, 0, new BufferedImage(frame.width, frame.height, BufferedImage.TYPE_INT_RGB));
 		gui.setImage(0, 1, new BufferedImage(frame.width, frame.height, BufferedImage.TYPE_INT_RGB));
 		gui.setPreferredSize(new Dimension(3*frame.width, frame.height*2));
@@ -139,15 +137,19 @@ public class MyMotionFromMosiac {
 			// yoni: shrink input during runtime
 			frame = shrinkImage(video.next(), SHRINK_VIDEO_FACTOR);
 
+			// yoni: if fails, will reset
+			boolean successStitch = stitch.process(frame);
+//				throw new RuntimeException("Stitching failed.");
 
-			if (!stitch.process(frame))
-				throw new RuntimeException("Stitching failed.");
 
-
-			// if the current image is close to the image border recenter the mosaic
+			// yoni: check if near one of borders
 			Quadrilateral_F64 corners = stitch.getImageCorners(frame.width, frame.height, null);
-			if (nearBorder(corners.a, stitch) || nearBorder(corners.b, stitch) ||
-					nearBorder(corners.c, stitch) || nearBorder(corners.d, stitch)) {
+			boolean isNearBorder = nearBorder(corners.a, stitch) || nearBorder(corners.b, stitch) ||
+					nearBorder(corners.c, stitch) || nearBorder(corners.d, stitch);
+
+			// if the current image is close to the image border or stitching failed,
+			// save mosiac up until now and start over
+			if (isNearBorder || !successStitch) {
 				logger.info("enlarging mosiac");
 
 
@@ -179,7 +181,7 @@ public class MyMotionFromMosiac {
 
 				corners = stitch.getImageCorners(frame.width, frame.height, null);
 				// Yoni: save after enalrge
-				savePlanar_F32(stitch.getStitchedImage(),"mosiacVideo " + num_frames + "AfterEnlarge.png" );
+				savePlanar_F32(stitch.getStitchedImage(),"mosiacVideo " + num_frames + "AfterReset.png" );
 
 			}//end of recentering mosiac
 
