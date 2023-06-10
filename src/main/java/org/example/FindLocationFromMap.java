@@ -24,20 +24,27 @@ import boofcv.abst.scene.SceneRecognition;
 import boofcv.abst.scene.WrapFeatureToSceneRecognition;
 import boofcv.factory.scene.FactorySceneRecognition;
 import boofcv.gui.ListDisplayPanel;
+import boofcv.gui.image.ImageGridPanel;
 import boofcv.gui.image.ScaleOptions;
 import boofcv.gui.image.ShowImages;
 import boofcv.io.UtilIO;
+import boofcv.io.image.ConvertBufferedImage;
 import boofcv.io.image.ImageFileListIterator;
 import boofcv.io.image.UtilImageIO;
 import boofcv.io.recognition.RecognitionIO;
 import boofcv.misc.BoofMiscOps;
+import boofcv.struct.image.GrayF32;
 import boofcv.struct.image.GrayU8;
 import boofcv.struct.image.ImageType;
+import boofcv.struct.image.Planar;
+import georegression.struct.point.Point2D_F64;
 import org.apache.commons.io.FilenameUtils;
 import org.ddogleg.struct.DogArray;
 
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -124,6 +131,14 @@ public class FindLocationFromMap {
 		}
 
 		var gui = new ListDisplayPanel();
+		var gui2 = new ImageGridPanel(1, 1);// yoni: another gui for drawing image
+
+		// set image of whole map in second column
+		BufferedImage wholeMap = UtilImageIO.loadImageNotNull("resources/for_scene/map_scene.jpg");
+		Planar<GrayF32> mapFmt =
+				ConvertBufferedImage.convertFromPlanar(wholeMap, null, true, GrayF32.class);
+		gui2.setImage(0, 0, wholeMap);
+		gui2.setPreferredSize(new Dimension(mapFmt.width, mapFmt.height));
 
 		//yoni: sample random test image
 		Random random = new Random();
@@ -145,6 +160,25 @@ public class FindLocationFromMap {
 			String name = FilenameUtils.getBaseName(new File(file).getName());
 			gui.addImage(image, String.format("%20s Error %6.3f", name, error), ScaleOptions.ALL);
 		}
+
+		// get pixel coordinates of best match on whole map
+		String bestMatch = matches.get(0).id;
+		String name = FilenameUtils.getBaseName(new File(bestMatch).getName());
+		String[] coordStr = name.split("_")[1].split("-");
+		int[] coordinates = Arrays.stream(coordStr).mapToInt(Integer::parseInt).toArray();
+		System.out.println("got pixel coordinates: " +Arrays.toString(coordinates));
+		int tlx = coordinates[0]; int tly = coordinates[1];
+		int brx = coordinates[2]; int bry = coordinates[3];
+		// draw square over map
+		// draw a red quadrilateral around the current frame in the mosaic
+		Graphics2D g2 = gui2.getImage(0, 0).createGraphics();
+		g2.setColor(Color.RED);
+		g2.drawLine(tlx, tly, brx, tly); // top line
+		g2.drawLine(tlx,bry,brx,bry); // bottom line
+		g2.drawLine(tlx,tly, tlx, bry); // left line
+		g2.drawLine(brx,tly,brx,bry); // right line
+//		gui.repaint();
+		ShowImages.showWindow(gui2, "match on map", true);
 
 		System.out.println("Train Images Num = " + imagesTrain.size());
 		System.out.println(imagesTest.get(queryInd) + " -> " + matches.get(0).id + " matches.size=" + matches.size);

@@ -43,10 +43,11 @@ import georegression.struct.shapes.Quadrilateral_F64;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.logging.Logger;
+
 /**
  * Example of how to create a mosaic from a video sequence using StitchingFromMotion2D. Mosaics work best
  * when the scene being observed is far away or a flat surface. The camera motion should typically be rotational only,
@@ -58,9 +59,10 @@ import java.util.logging.Logger;
  */
 public class MotionFromMosiac {
 	private static final Logger logger = Logger.getLogger(MotionFromMosiac.class.getName());
-	private static final int SHRINK_VIDEO_FACTOR = 4;
-	private static final int FIRST_STITCH_SHRINK_FACTOR = 8;
+	private static final int SHRINK_VIDEO_FACTOR = 6;
 	private static final int SKIPPED_FRAMES = 1;
+	private static final int SAVE_EVERY_NUM_STITCHES = 50;
+	private static final int LOCATION_LOG_FREQ = 25;
 
 
 
@@ -93,7 +95,7 @@ public class MotionFromMosiac {
 		// Load an image sequence
 		MediaManager media = DefaultMediaManager.INSTANCE;
 
-		String fileName = "resources/drone_foot_trim.mp4";
+		String fileName = "resources/vid_parking_drone.mp4";
 		SimpleImageSequence<Planar<GrayF32>> video =
 				media.openVideo(fileName, ImageType.pl(3, GrayF32.class));
 
@@ -101,7 +103,7 @@ public class MotionFromMosiac {
 		Planar<GrayF32> frame = shrinkImage(video.next(), SHRINK_VIDEO_FACTOR);
 
 		// shrink the input image and center it
-		Homography2D_F64 shrink = new Homography2D_F64(0.5, 0, frame.width/FIRST_STITCH_SHRINK_FACTOR, 0, 0.5, frame.height/FIRST_STITCH_SHRINK_FACTOR, 0, 0, 1);
+		Homography2D_F64 shrink = new Homography2D_F64(0.5, 0, frame.width/4, 0, 0.5, frame.height/4, 0, 0, 1);
 		shrink = shrink.invert(null);
 
 		// The mosaic will be larger in terms of pixels but the image will be scaled down.
@@ -110,12 +112,16 @@ public class MotionFromMosiac {
 		// process the first frame
 		stitch.process(frame);
 
+
+		ArrayList<Point2D_F64> pathLocations = new ArrayList<>();
 		// get location and log
 		Point2D_F64 location = getCenterFromCorners(stitch.getImageCorners(frame.width, frame.height, null));
+		pathLocations.add(location);
 		logLocation(location);
 
 		// Create the GUI for displaying the results + input image
 		ImageGridPanel gui = new ImageGridPanel(1, 2);
+		// (0,0) for input, (0,1) for mosiac
 		gui.setImage(0, 0, new BufferedImage(frame.width, frame.height, BufferedImage.TYPE_INT_RGB));
 		gui.setImage(0, 1, new BufferedImage(frame.width, frame.height, BufferedImage.TYPE_INT_RGB));
 		gui.setPreferredSize(new Dimension(3*frame.width, frame.height*2));
@@ -137,47 +143,67 @@ public class MotionFromMosiac {
 			// yoni: shrink input during runtime
 			frame = shrinkImage(video.next(), SHRINK_VIDEO_FACTOR);
 
-			// will be true if stitching fails or near border
-			boolean shouldReset = true;
-			// is stitching successful, check if near border
-			if(stitch.process(frame)){
-				Quadrilateral_F64 corners = stitch.getImageCorners(frame.width, frame.height, null);
-				shouldReset = nearBorder(corners.a, stitch) || nearBorder(corners.b, stitch) ||
-						nearBorder(corners.c, stitch) || nearBorder(corners.d, stitch);
+
+			if (!stitch.process(frame)) {
+				savePlanar_F32(stitch.getStitchedImage(), "mosiacVideo " + num_frames + "_failed_mosiac.png");
+				savePlanar_F32(frame, "mosiacVideo " + num_frames + "_failed_image.png");
+				throw new RuntimeException("stitching failure");
 			}
 
-			// if the current image is close to the image border or stitching failed,
-			// save mosiac up until now and start over
-			if (shouldReset) {
-				// Yoni: save mosiac
-				savePlanar_F32(stitch.getStitchedImage(),"mosiacVideo " + num_frames + "_before_reset.png" );
-				// reset stitch object
-				stitch.reset();
-				stitch.configure(frame.width, frame.height, shrink);
-				// try to process frame again
-				if(!stitch.process(frame)) throw new RuntimeException("Stitching failed after reset");
-//				Quadrilateral_F64 corners = stitch.getImageCorners(frame.width, frame.height, null);
+			// if the current image is close to the image border recenter the mosaic
+			Quadrilateral_F64 corners = stitch.getImageCorners(frame.width, frame.height, null);
+			if (nearBorder(corners.a, stitch) || nearBorder(corners.b, stitch) ||
+					nearBorder(corners.c, stitch) || nearBorder(corners.d, stitch)) {
+				stitch.setOriginToCurrent();
+				// yoni: must clear points when change of perspective
+				// ideally, transform points to new coordinate system
+				pathLocations.clear();
+
+				// Yoni: enlarge as much as needed
+				// only enlarge the image once
+				//if (!enlarged) {
+					enlarged = true;
+					// double the image size and shift it over to keep it centered
+					int widthOld = stitch.getStitchedImage().width;
+					int heightOld = stitch.getStitchedImage().height;
+
+					int widthNew = widthOld*2;
+					int heightNew = heightOld*2;
+
+					int tranX = (widthNew - widthOld)/2;
+					int tranY = (heightNew - heightOld)/2;
+
+					// Yoni: just translates image?
+					Homography2D_F64 newToOldStitch = new Homography2D_F64(1, 0, -tranX, 0, 1, -tranY, 0, 0, 1);
+
+					stitch.resizeStitchImage(widthNew, heightNew, newToOldStitch);
+					gui.setImage(0, 1, new BufferedImage(widthNew, heightNew, BufferedImage.TYPE_INT_RGB));
+
+
+				//} // end of enlarging image
+
+
+				corners = stitch.getImageCorners(frame.width, frame.height, null);
+				// Yoni: save after enalrge
+				savePlanar_F32(stitch.getStitchedImage(),"mosiacVideo " + num_frames + "AfterReset.png" );
 
 			}//end of recentering mosiac
 
-//			// get location (in pixels) and log every 10 frames
-//			if(num_frames %10 == 0) {
-//				location = getCenterFromCorners(stitch.getImageCorners(frame.width, frame.height, null));
+			// save location (in pixels)
+			if(num_frames %SKIPPED_FRAMES*LOCATION_LOG_FREQ == 0) {
+				location = getCenterFromCorners(stitch.getImageCorners(frame.width, frame.height, null));
+				pathLocations.add(location);
 //				logLocation(location);
-//			}
-			// save a frame every num stitched frames
+			}
+
 			// must be multiple of 15 because only 15-th frame is processed
-			if(num_frames% (SKIPPED_FRAMES*20) == 0) {
+			if(num_frames% (SKIPPED_FRAMES*SAVE_EVERY_NUM_STITCHES) == 0) {
 				savePlanar_F32(stitch.getStitchedImage(),"mosiacVideo " + num_frames + ".png" );
 			}
 
 			// display the mosaic
 			ConvertBufferedImage.convertTo(frame, gui.getImage(0, 0), true);
 			ConvertBufferedImage.convertTo(stitch.getStitchedImage(), gui.getImage(0, 1), true);
-
-			Quadrilateral_F64 corners = stitch.getImageCorners(frame.width, frame.height, null);
-			shouldReset = nearBorder(corners.a, stitch) || nearBorder(corners.b, stitch) ||
-					nearBorder(corners.c, stitch) || nearBorder(corners.d, stitch);
 
 			// draw a red quadrilateral around the current frame in the mosaic
 			Graphics2D g2 = gui.getImage(0, 1).createGraphics();
@@ -186,6 +212,13 @@ public class MotionFromMosiac {
 			g2.drawLine((int)corners.b.x, (int)corners.b.y, (int)corners.c.x, (int)corners.c.y);
 			g2.drawLine((int)corners.c.x, (int)corners.c.y, (int)corners.d.x, (int)corners.d.y);
 			g2.drawLine((int)corners.d.x, (int)corners.d.y, (int)corners.a.x, (int)corners.a.y);
+
+			Point2D_F64 last = pathLocations.get(0);
+			for(int i = 1; i< pathLocations.size(); ++i){
+				Point2D_F64 next = pathLocations.get(i);
+				g2.drawLine((int)last.x, (int)last.y, (int)next.x, (int)next.y);
+				last = next;
+			}
 
 			gui.repaint();
 
