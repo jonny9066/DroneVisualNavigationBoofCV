@@ -59,7 +59,8 @@ import java.util.logging.Logger;
 public class MotionFromMosiacOnePiece {
 	private static final Logger logger = Logger.getLogger(MotionFromMosiacOnePiece.class.getName());
 	private static final int SHRINK_VIDEO_FACTOR = 6;
-	private static final int SKIPPED_FRAMES = 30;
+	private static final int SKIPPED_FRAMES = 1;
+	private static final int SAVE_EVERY_NUM_STITCHES = 50;
 
 
 
@@ -92,7 +93,7 @@ public class MotionFromMosiacOnePiece {
 		// Load an image sequence
 		MediaManager media = DefaultMediaManager.INSTANCE;
 
-		String fileName = "resources/drone_foot_trim.mp4";
+		String fileName = "resources/vid_parking_tr1.mp4";
 		SimpleImageSequence<Planar<GrayF32>> video =
 				media.openVideo(fileName, ImageType.pl(3, GrayF32.class));
 
@@ -137,23 +138,20 @@ public class MotionFromMosiacOnePiece {
 			// yoni: shrink input during runtime
 			frame = shrinkImage(video.next(), SHRINK_VIDEO_FACTOR);
 
-			// yoni: if fails, will reset
-			boolean successStitch = stitch.process(frame);
-//				throw new RuntimeException("Stitching failed.");
 
+			if (!stitch.process(frame)) {
+				savePlanar_F32(stitch.getStitchedImage(), "mosiacVideo " + num_frames + "_failed_mosiac.png");
+				savePlanar_F32(frame, "mosiacVideo " + num_frames + "_failed_image.png");
+				throw new RuntimeException("stitching failure");
+			}
 
-			// yoni: check if near one of borders
+			// if the current image is close to the image border recenter the mosaic
 			Quadrilateral_F64 corners = stitch.getImageCorners(frame.width, frame.height, null);
-			boolean isNearBorder = nearBorder(corners.a, stitch) || nearBorder(corners.b, stitch) ||
-					nearBorder(corners.c, stitch) || nearBorder(corners.d, stitch);
-
-			// if the current image is close to the image border or stitching failed,
-			// save mosiac up until now and start over
-			if (isNearBorder || !successStitch) {
-				logger.info("enlarging mosiac");
-
-
+			if (nearBorder(corners.a, stitch) || nearBorder(corners.b, stitch) ||
+					nearBorder(corners.c, stitch) || nearBorder(corners.d, stitch)) {
 				stitch.setOriginToCurrent();
+
+
 
 				// Yoni: enlarge as much as needed
 				// only enlarge the image once
@@ -192,7 +190,7 @@ public class MotionFromMosiacOnePiece {
 //			}
 
 			// must be multiple of 15 because only 15-th frame is processed
-			if(num_frames% (SKIPPED_FRAMES*20) == 0) {
+			if(num_frames% (SKIPPED_FRAMES*SAVE_EVERY_NUM_STITCHES) == 0) {
 				savePlanar_F32(stitch.getStitchedImage(),"mosiacVideo " + num_frames + ".png" );
 			}
 
