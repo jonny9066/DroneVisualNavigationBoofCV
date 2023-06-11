@@ -81,7 +81,7 @@ public class ExampleVideoMosaic {
 		// Load an image sequence
 		MediaManager media = DefaultMediaManager.INSTANCE;
 //		String fileName = UtilIO.pathExample("mosaic/airplane01.mjpeg");
-		String fileName = "resources/drone_footage_trim.mp4";
+		String fileName = "resources/drone_foot_trim.mp4";
 		SimpleImageSequence<Planar<GrayF32>> video =
 				media.openVideo(fileName, ImageType.pl(3, GrayF32.class));
 
@@ -97,6 +97,7 @@ public class ExampleVideoMosaic {
 		stitch.configure(frame.width, frame.height, shrink);
 		// process the first frame
 		stitch.process(frame);
+
 
 		// Create the GUI for displaying the results + input image
 		ImageGridPanel gui = new ImageGridPanel(1, 2);

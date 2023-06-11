@@ -37,7 +37,6 @@ import boofcv.struct.image.GrayF32;
 import boofcv.struct.image.GrayU8;
 import boofcv.struct.image.ImageType;
 import boofcv.struct.image.Planar;
-import georegression.struct.point.Point2D_F64;
 import org.apache.commons.io.FilenameUtils;
 import org.ddogleg.struct.DogArray;
 
@@ -60,7 +59,7 @@ import java.util.Random;
  *
  * @author Peter Abeles
  */
-public class FindLocationFromMap {
+public class LocationFromMap {
 	private static final int NUM_TEST_IMAGES = 16;
 	public static void main( String[] args ) {
 //		String imagePath = "resources/example/recognition/scene"; //UtilIO.pathExample("recognition/scene");
