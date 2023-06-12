@@ -22,7 +22,7 @@ public class DroneLocation {
         // Load an image sequence
         MediaManager media = DefaultMediaManager.INSTANCE;
 
-        String fileName = "resources/vid_parking_drone.mp4";
+        String fileName = "resources/drone_foot_trim.mp4";
         SimpleImageSequence<Planar<GrayF32>> video =
                 media.openVideo(fileName, ImageType.pl(3, GrayF32.class));
 
