@@ -6,13 +6,10 @@ import org.jxmapviewer.OSMTileFactoryInfo;
 import org.jxmapviewer.viewer.*;
 
 import javax.swing.*;
+import javax.swing.plaf.synth.SynthTextAreaUI;
 import java.util.*;
 
 public class GPSTest {
-    public static double distance(Point p1, Point p2) {
-        return Math.sqrt(Math.pow(p1.x() - p2.x(), 2) + Math.pow(p1.y() - p2.y(), 2) + Math.pow(p1.z() - p2.z(), 2));
-    }
-
     public static void displayPointsOnMap(Point[] points) {
         SwingUtilities.invokeLater(() -> {
             // Create a JXMapViewer
@@ -25,13 +22,13 @@ public class GPSTest {
 
             // Use multiple threads in parallel to load the tiles
             tileFactory.setThreadPoolSize(5);
-            mapViewer.setZoom(4);
+            mapViewer.setZoom(3);
 
 
             // Create a list of waypoints from the given points
             Set<Waypoint> waypoints = new HashSet<>();
             for (Point point : points) {
-                double[] gpsCoords = CoordinateConverter.cartesianToLLA(point.x(), point.y(), point.z());
+                double[] gpsCoords = CoordinateConverter.xyzToLatLonDegrees(new double[]{point.x(), point.y(), point.z()});
                 GeoPosition position = new GeoPosition(gpsCoords[0], gpsCoords[1]);
                 waypoints.add(new DefaultWaypoint(position));
             }
@@ -44,7 +41,7 @@ public class GPSTest {
             mapViewer.setOverlayPainter(waypointPainter);
 
             // Set the initial display position
-            double[] gpsCoords = CoordinateConverter.cartesianToLLA(points[0].x(), points[0].y(), points[0].z());
+            double[] gpsCoords = CoordinateConverter.xyzToLatLonDegrees(new double[]{points[0].x(), points[0].y(), points[0].z()});
             GeoPosition startPosition = new GeoPosition(gpsCoords[0], gpsCoords[1]);
             mapViewer.setAddressLocation(startPosition);
 
@@ -60,14 +57,17 @@ public class GPSTest {
 
     public static void main(String[] args) {
         // ariel coords - 32.10450072,35.17505654,560.53479318
-        Point src = GPSPointFactory.fromGPSCoords(32.1048554, 35.1750541, 565.6083322);
-        Point dest = GPSPointFactory.fromGPSCoords(32.107199, 35.1812363, 569.7893899);
+        Point src = GPSPointFactory.fromGPSCoords(32.1048554, 35.1750541, 0);
+        Point dest = GPSPointFactory.fromGPSCoords(32.107199, 35.1812363, 0);
 
         double cx = dest.x() - src.x();
         double cy = dest.y() - src.y();
         double cz = dest.z() - src.z();
 
-        Point test_point1 = GPSPointFactory.fromVelocity(src, 0.5 * cx, 0.5 * cy, 0.5 * cz);
+        Point test_point1 = GPSPointFactory.fromVelocity(src, 0.8 * cx, 0.8 * cy, 0.8 * cz);
+
+        System.out.println(PointAlgo.distance(src, dest));
+        System.out.println(PointAlgo.distance(src, test_point1));
 
         displayPointsOnMap(new Point[]{
                 src,

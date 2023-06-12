@@ -2,7 +2,7 @@ package GPSUtils;
 
 public class GPSPointFactory {
     public static Point fromGPSCoords(double lat, double lon, double alt) {
-        double[] coords = CoordinateConverter.llaToCartesian(lat, lon, alt);
+        double[] coords = CoordinateConverter.getXYZfromLatLonDegrees(lat, lon, alt);
         return new Point(coords[0], coords[1], coords[2]);
     }
 
