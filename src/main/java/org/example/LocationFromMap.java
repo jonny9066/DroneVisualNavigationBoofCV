@@ -33,14 +33,11 @@ import boofcv.io.image.ImageFileListIterator;
 import boofcv.io.image.UtilImageIO;
 import boofcv.io.recognition.RecognitionIO;
 import boofcv.misc.BoofMiscOps;
-import boofcv.struct.feature.Match;
 import boofcv.struct.image.GrayF32;
 import boofcv.struct.image.GrayU8;
 import boofcv.struct.image.ImageType;
 import boofcv.struct.image.Planar;
-import georegression.struct.point.Point2D_F64;
 import org.apache.commons.io.FilenameUtils;
-import org.bridj.util.Pair;
 import org.ddogleg.struct.DogArray;
 
 import java.awt.*;
@@ -70,6 +67,7 @@ public class LocationFromMap {
 	private File saveDirectory;
 	ImageGridPanel guiMap;// gui for displaying map with red square for match
 	BufferedImage lastQueryImage;
+	BufferedImage wholeMapImage;
 
 
 //	public getLocationFromImage(){
@@ -138,17 +136,44 @@ public class LocationFromMap {
 
 		// create gui to display map and later squares of matches on it
 		guiMap = new ImageGridPanel(1, 1);
-		BufferedImage wholeMap = UtilImageIO.loadImageNotNull("resources/for_scene/map_scene.jpg");
-		guiMap.setImage(0, 0, wholeMap);
-		guiMap.setPreferredSize(new Dimension(wholeMap.getWidth(), wholeMap.getHeight()));
-
-
+		wholeMapImage = UtilImageIO.loadImageNotNull("resources/for_scene/map_scene.jpg");
+		guiMap.setImage(0, 0, wholeMapImage);
+		guiMap.setPreferredSize(new Dimension(wholeMapImage.getWidth(), wholeMapImage.getHeight()));
 
 	}
 
-	public void displayMatchOnMap(SceneRecognition.Match bestMatch){
-		// get map pixel coordinates from filename of best match
-		String bestMatchDir = bestMatch.id;
+	public DogArray<SceneRecognition.Match> getMatchesArray(Planar<GrayF32> queryF32){
+		BufferedImage query = ConvertBufferedImage.convertTo(queryF32, null, true);
+		return getMatchesArray(query);
+	}
+	public DogArray<SceneRecognition.Match> getMatchesArray(BufferedImage queryBufferedImage){
+		lastQueryImage = queryBufferedImage;
+		GrayU8 queryImage = ConvertBufferedImage.convertFrom(queryBufferedImage, (GrayU8) null);
+
+		// Look up images
+		DogArray<SceneRecognition.Match> matches = new DogArray<>(SceneRecognition.Match::new);
+
+//		recognizer.query(imageTestIterator.loadImage(queryInd),/* filter */ ( id ) -> true,/* limit */ 5, matches);
+
+		recognizer.query(queryImage, /* filter */ ( id ) -> true,/* limit */ 5, matches);
+
+		return  matches;
+	}
+	/*
+	Displays GUI window. Should be run once.
+	 */
+	public void displayGui(){
+		ShowImages.showWindow(guiMap, "match on map", true);
+	}
+
+	/*
+	Uses labels of dataset to find pixel location in map. Then draws red recatnge around it.
+	@match some match inside database of this that corresponds to map.
+
+	 */
+	public void updateGui(SceneRecognition.Match match){
+		// get map pixel coordinates from filename of match
+		String bestMatchDir = match.id;
 		String name = FilenameUtils.getBaseName(new File(bestMatchDir).getName());
 		String[] coordStr = name.split("_")[1].split("-");
 		int[] coordinates = Arrays.stream(coordStr).mapToInt(Integer::parseInt).toArray();
@@ -156,6 +181,9 @@ public class LocationFromMap {
 		int tlx = coordinates[0]; int tly = coordinates[1];
 		int brx = coordinates[2]; int bry = coordinates[3];
 
+		// clear map from previous drawings by replacing image with drawings with fresh image
+		guiMap.setImage(0,0, new BufferedImage(wholeMapImage.getColorModel(), wholeMapImage.copyData(null),
+																	wholeMapImage.isAlphaPremultiplied(), null));
 		// draw square over map
 		// draw a red quadrilateral around the current frame in the mosaic
 		Graphics2D g2 = guiMap.getImage(0, 0).createGraphics();
@@ -165,7 +193,7 @@ public class LocationFromMap {
 		g2.drawLine(tlx,tly, tlx, bry); // left line
 		g2.drawLine(brx,tly,brx,bry); // right line
 		guiMap.repaint();
-		ShowImages.showWindow(guiMap, "match on map", true);
+
 	}
 	public void displayClosestMatches(DogArray<SceneRecognition.Match> matches, String queryName){
 		ListDisplayPanel gui = new ListDisplayPanel();
@@ -183,25 +211,9 @@ public class LocationFromMap {
 		ShowImages.showWindow(gui, "Similar Images by Features", true);
 	}
 
-	public DogArray<SceneRecognition.Match> getMatchesArray(BufferedImage queryBufferedImage){
-		lastQueryImage = queryBufferedImage;
-        GrayU8 queryImage = ConvertBufferedImage.convertFrom(queryBufferedImage, (GrayU8) null);
-
-		// Look up images
-		DogArray<SceneRecognition.Match> matches = new DogArray<>(SceneRecognition.Match::new);
-
-//		recognizer.query(imageTestIterator.loadImage(queryInd),/* filter */ ( id ) -> true,/* limit */ 5, matches);
-
-		recognizer.query(queryImage, /* filter */ ( id ) -> true,/* limit */ 5, matches);
-
-		return  matches;
-//		System.out.println("Train Images Num = " + imagesTrain.size());
-//		System.out.println(imagesTest.get(queryInd) + " -> " + matches.get(0).id + " matches.size=" + matches.size);
-
-//		return new Pair<>(.0,.0);
-	}
 
 
+	// omly for test
 	public static void main( String[] args ) {
 		// create a scene matching object
 		LocationFromMap locationFromMap = new LocationFromMap();
@@ -214,13 +226,37 @@ public class LocationFromMap {
 		Random random = new Random();
 		int queryInd = random.nextInt(imagesTest.size());
 
+		// test on some random image from training set
 		String queryImageDir = imagesTest.get(queryInd);
 		BufferedImage queryImage = UtilImageIO.loadImageNotNull(queryImageDir);
 		var matches = locationFromMap.getMatchesArray(queryImage);
 
+		locationFromMap.displayGui();// run once
+
 //		locationFromMap.displayClosestMatches(matches ,FilenameUtils.getBaseName(queryImageDir));
-		locationFromMap.displayMatchOnMap(matches.get(0));
-		locationFromMap.displayMatchOnMap(matches.get(1));
+		locationFromMap.updateGui(matches.get(0));
+		//display second closest match
+//		locationFromMap.displayMatchOnMap(matches.get(1));
+
+		try {
+			// Pause the program for 2 seconds (2000 milliseconds)
+			Thread.sleep(2000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+
+		// try another random image from train
+		queryInd = random.nextInt(imagesTest.size());
+		queryImageDir = imagesTest.get(queryInd);
+		queryImage = UtilImageIO.loadImageNotNull(queryImageDir);
+		matches = locationFromMap.getMatchesArray(queryImage);
+
+//		locationFromMap.displayClosestMatches(matches ,FilenameUtils.getBaseName(queryImageDir));
+		locationFromMap.updateGui(matches.get(0));
+
+//		System.out.println("Train Images Num = " + imagesTrain.size());
+//		System.out.println(imagesTest.get(queryInd) + " -> " + matches.get(0).id + " matches.size=" + matches.size);
+
 
 
 		// Specifies which image it will try to look up. In the example, related images are in sets of 3.

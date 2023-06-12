@@ -211,7 +211,7 @@ public class MotionFromMosiac {
 	}
 
 
-	public void displayMosiac(){
+	public void displayGui(){
 		ShowImages.showWindow(gui, "Example Mosaic", true);
 	}
 
@@ -220,7 +220,36 @@ public class MotionFromMosiac {
 		savePlanar_F32(stitch.getStitchedImage(), filename);
 	}
 	public static void main( String[] args ) {
+		// Load an image sequence
+		MediaManager media = DefaultMediaManager.INSTANCE;
 
+		String fileName = "resources/vid_parking_drone.mp4";
+		SimpleImageSequence<Planar<GrayF32>> video =
+				media.openVideo(fileName, ImageType.pl(3, GrayF32.class));
+
+		// create our location detection objects
+		MotionFromMosiac motionFromMosiac = new MotionFromMosiac(video.next());
+		motionFromMosiac.displayGui(); // display gui window
+
+		int num_frames = 0;
+		while(video.hasNext()){
+			if(!motionFromMosiac.processFrame(video.next())){
+				throw new RuntimeException("failed to process frame "+ num_frames);
+			}
+			num_frames ++;
+			if(num_frames%300 == 0){
+				System.out.println("frame"+num_frames);
+			}
+//            if(num_frames % SKIPPED_FRAMES != 0){
+//                video.next();
+//                num_frames ++;
+//                continue;
+//            }
+//
+//            if(num_frames %SKIPPED_FRAMES*LOCATION_LOG_FREQ == 0) {
+//                //TODO get location
+//            }
+		}
 
 	}
 
