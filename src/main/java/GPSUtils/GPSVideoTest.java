@@ -10,6 +10,8 @@ import boofcv.factory.feature.associate.FactoryAssociation;
 import boofcv.factory.feature.detdesc.FactoryDetectDescribe;
 import boofcv.factory.geo.ConfigRansac;
 import boofcv.factory.geo.FactoryMultiViewRobust;
+import boofcv.gui.image.ImageGridPanel;
+import boofcv.gui.image.ShowImages;
 import boofcv.io.MediaManager;
 import boofcv.io.image.ConvertBufferedImage;
 import boofcv.io.image.SimpleImageSequence;
@@ -28,29 +30,35 @@ import georegression.transform.homography.HomographyPointOps_F64;
 import org.ddogleg.fitting.modelset.ModelMatcher;
 import org.ddogleg.struct.DogArray;
 import org.ddogleg.struct.FastAccess;
+import org.jxmapviewer.JXMapViewer;
+import org.jxmapviewer.OSMTileFactoryInfo;
+import org.jxmapviewer.viewer.*;
 
+import javax.swing.*;
+import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.*;
 import java.util.List;
 
 public class GPSVideoTest {
     public static void main(String[] args) {
-        int skipFrames = 24;
+        int skipFrames = 24 * 3;
+        int maxFrames = 10000;
         int frameCounter = 0;
-        Point startingPoint = GPSPointFactory.fromGPSCoords(30.97553, 34.94611, 0);
+        double distanceThreshold = 1.5;
+        Point startingPoint = GPSPointFactory.fromGPSCoords(32.09237848, 35.17513055, 564.05338779);
         List<Point> gpsPoints = new LinkedList<>();
         gpsPoints.add(startingPoint);
 
-        double xDistance = 746.16;
-        double yDistance = 1231.67 - xDistance;
+        double xDistance = 500;
+        double yDistance = 500;
 
         // Load an image sequence
         MediaManager media = DefaultMediaManager.INSTANCE;
 //		String fileName = UtilIO.pathExample("mosaic/airplane01.mjpeg");
+//        String fileName = "resources/ariel.mp4";
         String fileName = "resources/drone_foot_trim.mp4";
-        SimpleImageSequence<Planar<GrayF32>> video =
-                media.openVideo(fileName, ImageType.pl(3, GrayF32.class));
+        SimpleImageSequence<Planar<GrayF32>> video = media.openVideo(fileName, ImageType.pl(3, GrayF32.class));
 
         Planar<GrayF32> frame = video.next();
         Planar<GrayF32> previousFrame = frame;
@@ -59,35 +67,50 @@ public class GPSVideoTest {
         double xDistancePerPixel = xDistance / frame.getWidth();
         double yDistancePerPixel = yDistance / frame.getHeight();
 
-        while (video.hasNext()) {
+
+        // Create the GUI for displaying the results + input image
+        ImageGridPanel gui = new ImageGridPanel(1, 1);
+        gui.setImage(0, 0, new BufferedImage(frame.width, frame.height, BufferedImage.TYPE_INT_RGB));
+        gui.setPreferredSize(new Dimension(frame.width, frame.height));
+        ShowImages.showWindow(gui, "Example Mosaic", true);
+
+        while (video.hasNext() && frameCounter < maxFrames) {
             frame = video.next();
-
-            if (frameCounter % skipFrames != 0) {
-                frameCounter++;
-                continue;
-            }
-
-            BufferedImage bufferedPreviousFrame = ConvertBufferedImage.convertTo_F32(previousFrame, null, true);
             BufferedImage bufferedCurrentFrame = ConvertBufferedImage.convertTo_F32(frame, null, true);
-            Homography2D_F64 transform = stitch(bufferedPreviousFrame, bufferedCurrentFrame, GrayF32.class);
 
-            // use the homography to transform the center of the previous image
-            Point2D_F64 startImageCenter = new Point2D_F64(bufferedPreviousFrame.getWidth() / 2.0, bufferedPreviousFrame.getHeight() / 2.0);
-            Point2D_F64 transformedPoint = new Point2D_F64();
-            HomographyPointOps_F64.transform(transform, startImageCenter, transformedPoint);
+            if (frameCounter % skipFrames == 0) {
+                BufferedImage bufferedPreviousFrame = ConvertBufferedImage.convertTo_F32(previousFrame, null, true);
+                Homography2D_F64 transform = stitch(bufferedPreviousFrame, bufferedCurrentFrame, GrayF32.class);
 
-            System.out.println(startImageCenter);
-            System.out.println(transformedPoint);
+                // use the homography to transform the center of the previous image
+                Point2D_F64 startImageCenter = new Point2D_F64(bufferedPreviousFrame.getWidth() / 2.0, bufferedPreviousFrame.getHeight() / 2.0);
+                Point2D_F64 transformedPoint = new Point2D_F64();
+                HomographyPointOps_F64.transform(transform, startImageCenter, transformedPoint);
 
-            // compute distances in meters and get new point from result
-            double xDistanceMeters = (startImageCenter.x - transformedPoint.x) * xDistancePerPixel;
-            double yDistanceMeters = (startImageCenter.y + transformedPoint.y) * yDistancePerPixel;
-            Point lastPoint = gpsPoints.get(gpsPoints.size() - 1);
-            Point newPoint = GPSPointFactory.fromVelocity(lastPoint, xDistanceMeters, yDistanceMeters, 0);
+//                System.out.println(startImageCenter);
+//                System.out.println(transformedPoint);
 
-            gpsPoints.add(newPoint);
+                // compute distances in meters and get new point from result
+                double xDistanceMeters = (startImageCenter.x - transformedPoint.x) * xDistancePerPixel;
+                double yDistanceMeters = (startImageCenter.y - transformedPoint.y) * yDistancePerPixel;
+                Point lastPoint = gpsPoints.get(gpsPoints.size() - 1);
+                Point newPoint = GPSPointFactory.fromVelocity(lastPoint, xDistanceMeters, yDistanceMeters, 0);
+                double distance = PointAlgo.distance(lastPoint, newPoint);
+
+                if (distance > distanceThreshold) {
+                    gpsPoints.add(newPoint);
+                    System.out.println("Moving! (Distance: " + distance + ")");
+                }
+
+                previousFrame = frame.clone();
+            }
             frameCounter++;
+
+            gui.setImage(0, 0, bufferedCurrentFrame);
+            gui.repaint();
         }
+
+        displayPointsOnMap(gpsPoints.toArray(new Point[0]));
     }
 
     public static <T extends ImageGray<T>, TD extends TupleDesc<TD>> Homography2D_F64 computeTransform(T imageA, T imageB, DetectDescribePoint<T, TD> detDesc, AssociateDescription<TD> associate, ModelMatcher<Homography2D_F64, AssociatedPair> modelMatcher) {
@@ -158,5 +181,51 @@ public class GPSVideoTest {
 
         return H;
     }
+
+    public static void displayPointsOnMap(Point[] points) {
+        SwingUtilities.invokeLater(() -> {
+            // Create a JXMapViewer
+            JXMapViewer mapViewer = new JXMapViewer();
+
+            // Create a TileFactoryInfo for OpenStreetMap
+            TileFactoryInfo info = new OSMTileFactoryInfo();
+            DefaultTileFactory tileFactory = new DefaultTileFactory(info);
+            mapViewer.setTileFactory(tileFactory);
+
+            // Use multiple threads in parallel to load the tiles
+            tileFactory.setThreadPoolSize(5);
+            mapViewer.setZoom(6);
+
+
+            // Create a list of waypoints from the given points
+            Set<Waypoint> waypoints = new HashSet<>();
+            for (Point point : points) {
+                double[] gpsCoords = CoordinateConverter.xyzToLatLonDegrees(new double[]{point.x(), point.y(), point.z()});
+                GeoPosition position = new GeoPosition(gpsCoords[0], gpsCoords[1]);
+                waypoints.add(new DefaultWaypoint(position));
+            }
+
+            // Create a WaypointPainter to display the waypoints on the map
+            WaypointPainter<Waypoint> waypointPainter = new WaypointPainter<>();
+            waypointPainter.setWaypoints(waypoints);
+
+            // Add the WaypointPainter to the map viewer
+            mapViewer.setOverlayPainter(waypointPainter);
+
+            // Set the initial display position
+            double[] gpsCoords = CoordinateConverter.xyzToLatLonDegrees(new double[]{points[0].x(), points[0].y(), points[0].z()});
+            GeoPosition startPosition = new GeoPosition(gpsCoords[0], gpsCoords[1]);
+            mapViewer.setAddressLocation(startPosition);
+
+            // Create a JFrame to display the map viewer
+            JFrame frame = new JFrame("JXMapViewer Example");
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.getContentPane().add(mapViewer);
+            frame.setSize(800, 600);
+            frame.setLocationRelativeTo(null);
+            frame.setVisible(true);
+        });
+    }
+
 
 }
