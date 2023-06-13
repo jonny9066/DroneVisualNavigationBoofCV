@@ -31,7 +31,7 @@ public class DroneLocation {
         // create our location detection objects
         MotionFromMosiac motionFromMosiac = new MotionFromMosiac(video.next()); // init on first frame
         // loads a map with a database, make sure corresponds to video
-        LocationFromMap locationFromMap = new LocationFromMap();
+        LocationFromMap locationFromMap = new LocationFromMap(6);
         // display gui windows for both mathods for debugging
         motionFromMosiac.displayGui();
         locationFromMap.displayGui();

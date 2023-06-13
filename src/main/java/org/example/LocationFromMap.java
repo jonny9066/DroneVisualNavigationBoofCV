@@ -40,14 +40,17 @@ import boofcv.struct.image.Planar;
 import org.apache.commons.io.FilenameUtils;
 import org.ddogleg.struct.DogArray;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.util.Arrays;
-import java.util.Collections;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
 import java.util.List;
-import java.util.Random;
 
 /**
  * In BoofCV, scene recognition [1] refers to the problem of trying to identify photos of the same scene (not a single
@@ -65,11 +68,18 @@ public class LocationFromMap {
 	private ImageType<GrayU8> imageType = ImageType.SB_U8;
 
 	SceneRecognition<GrayU8> recognizer;// the scene recognition object
-	private File saveDirectory;
+//	private File saveDirectory;
 	ImageGridPanel guiMap;// gui for displaying map with red square for match
 	BufferedImage lastQueryImage;
-	final String wholeMapLocation =  "frame_5104.jpg";
+	final static String WHOLE_MAP_LOCATION =  "resources/for_scene/frame_5104.jpg";
 	BufferedImage wholeMapImage;
+	final static String imagesTrainSuffix = ".png";
+
+	// few directories: for split images, for model.
+	// Different models and split images have different index in end
+//	final static String SAVE_DIRECTORY_BASE = "resources/for_scene/";
+	final static String MODEL_SAVE_DIRECTORY_GENERIC = "resources/for_scene/pretrained";// should append corresponding number
+	final static String IMAGE_TRAIN_PATH_GENERIC = "resources/for_scene/trainingImages";// should append corresponding number
 	JFrame jFrameContainer;
 
 
@@ -77,16 +87,21 @@ public class LocationFromMap {
 //
 //	}
 
+	/*
 
-	public LocationFromMap(){
-		String imageTrainPath = "resources/for_scene/split_train";
-		List<String> imagesTrain = UtilIO.listByPrefix(imageTrainPath, null, ".png");
+	 */
+	private void trainAndLoadNewModel(int numSquares){
+
+		// check if we have a database to train from
+		Path saveDir = Paths.get(MODEL_SAVE_DIRECTORY_GENERIC + numSquares);
+		if (!Files.exists(saveDir)) {
+			// if not, use map to generate new one
+			splitMapAndSave(numSquares);
+		}
+
+		// datasets differentiated by number of squares
+		List<String> imagesTrain = UtilIO.listByPrefix(IMAGE_TRAIN_PATH_GENERIC+numSquares, null, imagesTrainSuffix);
 		Collections.sort(imagesTrain);
-
-
-		// Except for real-time applications or when there are more than a few hundred images, you might want to
-		// just learn the dictionary from scratch
-		File saveDirectory = new File("location_from_map_database");
 
 		// Tell it to process gray U8 images
 		ImageType<GrayU8> imageType = ImageType.SB_U8;
@@ -95,51 +110,58 @@ public class LocationFromMap {
 		var imageTrainIterator =
 				new ImageFileListIterator<>(imagesTrain, imageType);
 
+		// If many applications, learning a new model is a small fraction of the compute time and since its
+		// fit to the images it will be more accurate than a generic pre-built model
+		System.out.println("Creating a new model");
+		var config = new ConfigFeatureToSceneRecognition();
+		// Use a hierarchical vocabulary tree, which is very fast and also one of the more accurate approaches
+		config.typeRecognize = ConfigFeatureToSceneRecognition.Type.NISTER_2006;
+		config.recognizeNister2006.learningMinimumPointsForChildren.setFixed(20);
+
+		recognizer = FactorySceneRecognition.createFeatureToScene(config, imageType);
+		// This will print out a lot of debugging information to stdout
+		recognizer.setVerbose(System.out, BoofMiscOps.hashSet(BoofVerbose.RECURSIVE));
+
+		// Learn the model from the initial set of images
+		recognizer.learnModel(imageTrainIterator);
+
+		// the model also requires images to be in the database to match against them
+
+		// Add images to the database
+		// new model should be empty
+		if(!recognizer.getImageIds(null).isEmpty()) throw new RuntimeException("expected new model to be empty");
+		System.out.println("Adding images to the database");
+		imageTrainIterator.reset();
+		while (imageTrainIterator.hasNext()) {
+			GrayU8 image = imageTrainIterator.next();
+			recognizer.addImage(imagesTrain.get(imageTrainIterator.getIndex()), image);
+		}
+
+		// This saves the model with the image database to disk
+		System.out.println("Saving model");
+		BoofMiscOps.profile(() -> RecognitionIO.saveFeatureToScene(
+				(WrapFeatureToSceneRecognition<GrayU8, ?>)recognizer, new File( saveDir.toString())), "");
+	}
+
+	public LocationFromMap(int dataset){
+		// Except for real-time applications or when there are more than a few hundred images, you might want to
+		// just learn the dictionary from scratch
+		var modelSaveDirectory = new File(MODEL_SAVE_DIRECTORY_GENERIC + dataset);
 
 		// load pre-trained model if exists
-		if (saveDirectory.exists()) {
+		if (modelSaveDirectory.exists()) {
 			System.out.println("Loading previously generated model");
-			recognizer = RecognitionIO.loadFeatureToScene(saveDirectory, imageType);
+			recognizer = RecognitionIO.loadFeatureToScene(modelSaveDirectory, imageType);
 			recognizer.setVerbose(System.out, BoofMiscOps.hashSet(BoofVerbose.RECURSIVE));
 		}
-		// else, train a new model based on provided images
+		// then train a new model based on map
 		else {
-			// If many applications, learning a new model is a small fraction of the compute time and since its
-			// fit to the images it will be more accurate than a generic pre-built model
-			System.out.println("Creating a new model");
-			var config = new ConfigFeatureToSceneRecognition();
-			// Use a hierarchical vocabulary tree, which is very fast and also one of the more accurate approaches
-			config.typeRecognize = ConfigFeatureToSceneRecognition.Type.NISTER_2006;
-			config.recognizeNister2006.learningMinimumPointsForChildren.setFixed(20);
-
-			recognizer = FactorySceneRecognition.createFeatureToScene(config, imageType);
-			// This will print out a lot of debugging information to stdout
-			recognizer.setVerbose(System.out, BoofMiscOps.hashSet(BoofVerbose.RECURSIVE));
-
-			// Learn the model from the initial set of images
-			recognizer.learnModel(imageTrainIterator);
-
-			// the model also requires images to be in the database to match against them
-
-			// Add images to the database
-			// new model should be empty
-			if(!recognizer.getImageIds(null).isEmpty()) throw new RuntimeException("expected new model to be empty");
-			System.out.println("Adding images to the database");
-			imageTrainIterator.reset();
-			while (imageTrainIterator.hasNext()) {
-				GrayU8 image = imageTrainIterator.next();
-				recognizer.addImage(imagesTrain.get(imageTrainIterator.getIndex()), image);
-			}
-
-			// This saves the model with the image database to disk
-			System.out.println("Saving model");
-			BoofMiscOps.profile(() -> RecognitionIO.saveFeatureToScene(
-					(WrapFeatureToSceneRecognition<GrayU8, ?>)recognizer, saveDirectory), "");
+			trainAndLoadNewModel(dataset);
 		}
 
 		// create gui to display map and later squares of matches on it
 		guiMap = new ImageGridPanel(1, 1);
-		wholeMapImage = UtilImageIO.loadImageNotNull("resources/for_scene/" + wholeMapLocation);
+		wholeMapImage = UtilImageIO.loadImageNotNull(WHOLE_MAP_LOCATION);
 		guiMap.setImage(0, 0, wholeMapImage);
 		guiMap.setPreferredSize(new Dimension(wholeMapImage.getWidth(), wholeMapImage.getHeight()));
 
@@ -223,15 +245,80 @@ public class LocationFromMap {
 	}
 
 
+	public static void splitMapAndSave(int numTiles){
+		BufferedImage bufferedImage = UtilImageIO.loadImageNotNull(WHOLE_MAP_LOCATION);/* Load or obtain the image */;
+
+		// Convert the image to BoofCV GrayU8 format
+		GrayU8 image = ConvertBufferedImage.convertFrom(bufferedImage, (GrayU8) null);
+
+		// tile size determined by number of squares that fit in minimum of width/hights
+		int minWidthHeight = Math.min(bufferedImage.getWidth(),bufferedImage.getHeight());
+		// Specify the desired size of each square tile
+		int tileSize = minWidthHeight/numTiles; // Adjust this value according to your requirements
+
+		// Calculate the number of tiles horizontally and vertically
+		int numTilesX = image.getWidth() / tileSize;
+		int numTilesY = image.getHeight() / tileSize;
+
+		// create save folder if doesn't exist
+		Path saveDir = Paths.get(IMAGE_TRAIN_PATH_GENERIC + numTiles);
+		if (!Files.exists(saveDir)) {
+			try {
+				Files.createDirectories(saveDir);
+				System.out.println("Directory created: " + saveDir);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
+		// Extract each square tile from the image
+		for (int y = 0; y < numTilesY; y++) {
+			for (int x = 0; x < numTilesX; x++) {
+				// Define the region of interest (ROI) for the current tile
+				int startX = x * tileSize;
+				int startY = y * tileSize;
+				int endX = startX + tileSize;
+				int endY = startY + tileSize;
+
+				// Extract the tile from the image using the ROI
+				GrayU8 tile = image.subimage(startX, startY, endX, endY, null);
+//				String tileName = "square_{left}-{upper}-{right}-{lower}" + imagesTrainSuffix;
+				// important ot have _ and - in right places. name unimportant
+				String tileName = "tile_" + startX + "-" + startY + "-" + endX + "-" + endY + imagesTrainSuffix;
+
+				// save image in path
+				try {
+					BufferedImage tileImage = ConvertBufferedImage.convertTo(tile, null);
+					// append image name to base path
+					File outputFile = new File(saveDir.resolve(tileName).toString());
+					ImageIO.write(tileImage, "PNG", outputFile);
+				} catch (IOException e) {
+					e.printStackTrace();
+					}
+				}
+			}
+
+	}
+
+
+
+//	private enum NumTiles{
+//		5,6,7
+//	}
 
 	// omly for test
 	public static void main( String[] args ) {
+//		splitMapAndSave("resources/for_scene/frame_5104.jpg", 4);
+//		splitMapAndSave(6);
+//		splitMapAndSave("resources/for_scene/frame_5104.jpg", 7);
+
+
 		// create a scene matching object
-		LocationFromMap locationFromMap = new LocationFromMap();
+		LocationFromMap locationFromMap = new LocationFromMap(6);
+//		locationFromMap.displayGui();
 
 		// take an image from some test directory
-		String imageTestPath = "resources/for_scene/split_test";
-		List<String> imagesTest = UtilIO.listByPrefix(imageTestPath, null, ".png");
+		List<String> imagesTest = UtilIO.listByPrefix(IMAGE_TRAIN_PATH_GENERIC +6, null, ".png");
 		Collections.sort(imagesTest);
 		// sample random test image
 		Random random = new Random();
@@ -264,6 +351,8 @@ public class LocationFromMap {
 
 		locationFromMap.displayClosestMatches(matches ,FilenameUtils.getBaseName(queryImageDir));
 		locationFromMap.updateGui(matches.get(0));
+
+
 
 //		System.out.println("Train Images Num = " + imagesTrain.size());
 //		System.out.println(imagesTest.get(queryInd) + " -> " + matches.get(0).id + " matches.size=" + matches.size);
