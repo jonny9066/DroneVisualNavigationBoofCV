@@ -40,6 +40,7 @@ import boofcv.struct.image.Planar;
 import org.apache.commons.io.FilenameUtils;
 import org.ddogleg.struct.DogArray;
 
+import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -67,7 +68,9 @@ public class LocationFromMap {
 	private File saveDirectory;
 	ImageGridPanel guiMap;// gui for displaying map with red square for match
 	BufferedImage lastQueryImage;
+	final String wholeMapLocation =  "frame_5104.jpg";
 	BufferedImage wholeMapImage;
+	JFrame jFrameContainer;
 
 
 //	public getLocationFromImage(){
@@ -83,7 +86,7 @@ public class LocationFromMap {
 
 		// Except for real-time applications or when there are more than a few hundred images, you might want to
 		// just learn the dictionary from scratch
-		File saveDirectory = new File("example_recognition");
+		File saveDirectory = new File("location_from_map_database");
 
 		// Tell it to process gray U8 images
 		ImageType<GrayU8> imageType = ImageType.SB_U8;
@@ -136,9 +139,17 @@ public class LocationFromMap {
 
 		// create gui to display map and later squares of matches on it
 		guiMap = new ImageGridPanel(1, 1);
-		wholeMapImage = UtilImageIO.loadImageNotNull("resources/for_scene/map_scene.jpg");
+		wholeMapImage = UtilImageIO.loadImageNotNull("resources/for_scene/" + wholeMapLocation);
 		guiMap.setImage(0, 0, wholeMapImage);
 		guiMap.setPreferredSize(new Dimension(wholeMapImage.getWidth(), wholeMapImage.getHeight()));
+
+//		// Create a JFrame to display the ImageGridPanel
+//		jFrameContainer = new JFrame("Image Grid Panel Example");
+//		jFrameContainer.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//		jFrameContainer.getContentPane().setLayout(new BorderLayout());
+//		jFrameContainer.getContentPane().add(guiMap, BorderLayout.CENTER);
+//		jFrameContainer.pack();
+//		jFrameContainer.setVisible(true);
 
 	}
 
@@ -251,7 +262,7 @@ public class LocationFromMap {
 		queryImage = UtilImageIO.loadImageNotNull(queryImageDir);
 		matches = locationFromMap.getMatchesArray(queryImage);
 
-//		locationFromMap.displayClosestMatches(matches ,FilenameUtils.getBaseName(queryImageDir));
+		locationFromMap.displayClosestMatches(matches ,FilenameUtils.getBaseName(queryImageDir));
 		locationFromMap.updateGui(matches.get(0));
 
 //		System.out.println("Train Images Num = " + imagesTrain.size());
