@@ -69,18 +69,16 @@ public class LocationFromMap {
 
 	SceneRecognition<GrayU8> recognizer;// the scene recognition object
 //	private File saveDirectory;
-	ImageGridPanel guiMap;// gui for displaying map with red square for match
 	BufferedImage lastQueryImage;
-	final static String WHOLE_MAP_LOCATION =  "resources/for_scene/frame_5104.jpg";
+	String mapLocation;
 	BufferedImage wholeMapImage;
 	final static String imagesTrainSuffix = ".png";
 
-	// few directories: for split images, for model.
+	// two directories: for split images, for model.
 	// Different models and split images have different index in end
-//	final static String SAVE_DIRECTORY_BASE = "resources/for_scene/";
 	final static String MODEL_SAVE_DIRECTORY_GENERIC = "resources/for_scene/pretrained";// should append corresponding number
-	final static String IMAGE_TRAIN_PATH_GENERIC = "resources/for_scene/trainingImages";// should append corresponding number
-	JFrame jFrameContainer;
+	final static String IMAGE_TRAIN_PATH_GENERIC = "resources/for_scene/trainingImages";
+
 
 
 //	public getLocationFromImage(){
@@ -91,6 +89,7 @@ public class LocationFromMap {
 
 	 */
 	private void trainAndLoadNewModel(int numSquares){
+
 
 		// check if we have a database to train from
 		Path saveDir = Paths.get(MODEL_SAVE_DIRECTORY_GENERIC + numSquares);
@@ -143,7 +142,8 @@ public class LocationFromMap {
 				(WrapFeatureToSceneRecognition<GrayU8, ?>)recognizer, new File( saveDir.toString())), "");
 	}
 
-	public LocationFromMap(int dataset){
+	public LocationFromMap(int dataset, String mapLocation){
+		this.mapLocation = mapLocation;
 		// Except for real-time applications or when there are more than a few hundred images, you might want to
 		// just learn the dictionary from scratch
 		var modelSaveDirectory = new File(MODEL_SAVE_DIRECTORY_GENERIC + dataset);
@@ -159,11 +159,7 @@ public class LocationFromMap {
 			trainAndLoadNewModel(dataset);
 		}
 
-		// create gui to display map and later squares of matches on it
-		guiMap = new ImageGridPanel(1, 1);
-		wholeMapImage = UtilImageIO.loadImageNotNull(WHOLE_MAP_LOCATION);
-		guiMap.setImage(0, 0, wholeMapImage);
-		guiMap.setPreferredSize(new Dimension(wholeMapImage.getWidth(), wholeMapImage.getHeight()));
+
 
 //		// Create a JFrame to display the ImageGridPanel
 //		jFrameContainer = new JFrame("Image Grid Panel Example");
@@ -195,39 +191,14 @@ public class LocationFromMap {
 	/*
 	Displays GUI window. Should be run once.
 	 */
-	public void displayGui(){
-		ShowImages.showWindow(guiMap, "match on map", true);
-	}
+
 
 	/*
 	Uses labels of dataset to find pixel location in map. Then draws red recatnge around it.
 	@match some match inside database of this that corresponds to map.
 
 	 */
-	public void updateGui(SceneRecognition.Match match){
-		// get map pixel coordinates from filename of match
-		String bestMatchDir = match.id;
-		String name = FilenameUtils.getBaseName(new File(bestMatchDir).getName());
-		String[] coordStr = name.split("_")[1].split("-");
-		int[] coordinates = Arrays.stream(coordStr).mapToInt(Integer::parseInt).toArray();
-		System.out.println("got pixel coordinates: " +Arrays.toString(coordinates));
-		int tlx = coordinates[0]; int tly = coordinates[1];
-		int brx = coordinates[2]; int bry = coordinates[3];
 
-		// clear map from previous drawings by replacing image with drawings with fresh image
-		guiMap.setImage(0,0, new BufferedImage(wholeMapImage.getColorModel(), wholeMapImage.copyData(null),
-																	wholeMapImage.isAlphaPremultiplied(), null));
-		// draw square over map
-		// draw a red quadrilateral around the current frame in the mosaic
-		Graphics2D g2 = guiMap.getImage(0, 0).createGraphics();
-		g2.setColor(Color.RED);
-		g2.drawLine(tlx, tly, brx, tly); // top line
-		g2.drawLine(tlx,bry,brx,bry); // bottom line
-		g2.drawLine(tlx,tly, tlx, bry); // left line
-		g2.drawLine(brx,tly,brx,bry); // right line
-		guiMap.repaint();
-
-	}
 	public void displayClosestMatches(DogArray<SceneRecognition.Match> matches, String queryName){
 		ListDisplayPanel gui = new ListDisplayPanel();
 		// Add the target which the other images are being matched against
@@ -245,8 +216,8 @@ public class LocationFromMap {
 	}
 
 
-	public static void splitMapAndSave(int numTiles){
-		BufferedImage bufferedImage = UtilImageIO.loadImageNotNull(WHOLE_MAP_LOCATION);/* Load or obtain the image */;
+	public void splitMapAndSave(int numTiles){
+		BufferedImage bufferedImage = UtilImageIO.loadImageNotNull(mapLocation);/* Load or obtain the image */;
 
 		// Convert the image to BoofCV GrayU8 format
 		GrayU8 image = ConvertBufferedImage.convertFrom(bufferedImage, (GrayU8) null);
@@ -313,12 +284,14 @@ public class LocationFromMap {
 //		splitMapAndSave("resources/for_scene/frame_5104.jpg", 7);
 
 
+		int numTiles = 7;
+		String mapLocation = "resources/for_scene/frame_5104.jpg";
 		// create a scene matching object
-		LocationFromMap locationFromMap = new LocationFromMap(6);
+		LocationFromMap locationFromMap = new LocationFromMap(numTiles, mapLocation);
 //		locationFromMap.displayGui();
 
 		// take an image from some test directory
-		List<String> imagesTest = UtilIO.listByPrefix(IMAGE_TRAIN_PATH_GENERIC +6, null, ".png");
+		List<String> imagesTest = UtilIO.listByPrefix(IMAGE_TRAIN_PATH_GENERIC +numTiles, null, ".png");
 		Collections.sort(imagesTest);
 		// sample random test image
 		Random random = new Random();
@@ -329,10 +302,10 @@ public class LocationFromMap {
 		BufferedImage queryImage = UtilImageIO.loadImageNotNull(queryImageDir);
 		var matches = locationFromMap.getMatchesArray(queryImage);
 
-		locationFromMap.displayGui();// run once
-
+		MapGui mapGui = new MapGui(mapLocation);
 //		locationFromMap.displayClosestMatches(matches ,FilenameUtils.getBaseName(queryImageDir));
-		locationFromMap.updateGui(matches.get(0));
+		mapGui.updateGui(matches.get(0), Color.RED);
+		mapGui.display();
 		//display second closest match
 //		locationFromMap.displayMatchOnMap(matches.get(1));
 
@@ -350,7 +323,7 @@ public class LocationFromMap {
 		matches = locationFromMap.getMatchesArray(queryImage);
 
 		locationFromMap.displayClosestMatches(matches ,FilenameUtils.getBaseName(queryImageDir));
-		locationFromMap.updateGui(matches.get(0));
+		mapGui.updateGui(matches.get(0), Color.BLUE);
 
 
 

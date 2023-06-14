@@ -1,11 +1,15 @@
 package org.example;
 
+import boofcv.gui.image.ImageGridPanel;
 import boofcv.io.MediaManager;
 import boofcv.io.image.SimpleImageSequence;
 import boofcv.io.wrapper.DefaultMediaManager;
 import boofcv.struct.image.GrayF32;
 import boofcv.struct.image.ImageType;
 import boofcv.struct.image.Planar;
+
+import java.awt.*;
+import java.util.ArrayList;
 
 /*
 Takes video footage, height and direction.
@@ -17,6 +21,7 @@ public class DroneLocation {
     private static final int SAVE_EVERY_NUM_STITCHES = 50;
 
     private static final int LOCATE_ON_MAP_EVERY_NUM_FRAMES = 90;
+    final static String WHOLE_MAP_LOCATION =  "resources/for_scene/frame_5104.jpg";
     private static final int LOCATION_LOG_FREQ = 25;
 
     // main class for testing
@@ -24,17 +29,24 @@ public class DroneLocation {
         // Load an image sequence
         MediaManager media = DefaultMediaManager.INSTANCE;
 
-        String fileName = "resources/drone_foot_trim.mp4";
+        String fileName = "resources/vid_parking_drone.mp4";
         SimpleImageSequence<Planar<GrayF32>> video =
                 media.openVideo(fileName, ImageType.pl(3, GrayF32.class));
+
 
         // create our location detection objects
         MotionFromMosiac motionFromMosiac = new MotionFromMosiac(video.next()); // init on first frame
         // loads a map with a database, make sure corresponds to video
-        LocationFromMap locationFromMap = new LocationFromMap(6);
+        // load several databases with different scales
+        LocationFromMap locationFromMap1 = new LocationFromMap(5, WHOLE_MAP_LOCATION);
+        LocationFromMap locationFromMap2 = new LocationFromMap(6, WHOLE_MAP_LOCATION);
+        LocationFromMap locationFromMap3 = new LocationFromMap(7, WHOLE_MAP_LOCATION);
+        LocationFromMap locationFromMap4 = new LocationFromMap(8, WHOLE_MAP_LOCATION);
         // display gui windows for both mathods for debugging
+        MapGui mapGui = new MapGui(WHOLE_MAP_LOCATION);// gui for displaying map with red square for match
+        mapGui.display();
         motionFromMosiac.displayGui();
-        locationFromMap.displayGui();
+        mapGui.display();
 
         // traverse whole video
         int num_frames = 0;
@@ -50,8 +62,15 @@ public class DroneLocation {
             if(num_frames%LOCATE_ON_MAP_EVERY_NUM_FRAMES == 0){
                 System.out.println("locating frame "+num_frames + "on map");
                 // get matches and draw rectange over first in map
-                var matches = locationFromMap.getMatchesArray(frame);
-                locationFromMap.updateGui(matches.get(0));
+                var matches1 = locationFromMap1.getMatchesArray(frame);
+                var matches2 = locationFromMap2.getMatchesArray(frame);
+                var matches3 = locationFromMap3.getMatchesArray(frame);
+                var matches4 = locationFromMap4.getMatchesArray(frame);
+                mapGui.clearGui();
+                mapGui.updateGui(matches1.get(0), Color.BLUE);
+                mapGui.updateGui(matches2.get(0), Color.RED);
+                mapGui.updateGui(matches3.get(0), Color.GREEN);
+                mapGui.updateGui(matches4.get(0), Color.yellow);
             }
 //            if(num_frames % SKIPPED_FRAMES != 0){
 //                video.next();
