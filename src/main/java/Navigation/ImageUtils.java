@@ -17,11 +17,28 @@ public class ImageUtils {
         AverageDownSampleOps.down(image, shrunkImage);
         return shrunkImage;
     }
-    public static Planar<GrayF32> squareImage(Planar<GrayF32> image, int shrinkFactor){
-        // todo
-        Planar<GrayF32> shrunkImage = new Planar<>(GrayF32.class, image.width / shrinkFactor, image.height / shrinkFactor, image.getNumBands());
-        AverageDownSampleOps.down(image, shrunkImage);
-        return shrunkImage;
+    public static Planar<GrayF32> squareImage(Planar<GrayF32> image){
+        // take smallest of height/width
+        int height = image.height; int width = image.width;
+        // coordinates of two points that represent square
+        int startX = 0; int startY = 0;
+        int endX = 0; int endY = 0;
+//        int smaller = Math.min(image.height, image.width);
+
+        // if width smaller, then square will have size width
+        if(height>width){
+            endX += width; endY += width;
+            // translate the Y coordinate to move to center
+            startY += width/2; endY += width/2;
+        }
+        else {
+            endX += height;
+            endY += height;
+            // translate the Y coordinate to move to center
+            startX += width / 2;
+            endX += width / 2;
+        }
+        return image.subimage(startX, startY, endX, endY, null);
     }
     public static void savePlanar_F32(Planar<GrayF32> image, String name){
         try {
