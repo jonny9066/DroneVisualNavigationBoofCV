@@ -52,7 +52,7 @@ public class MapGui {
         var pointPair = MapToData.tileNameToCoordinate(name);
 //        System.out.println("got pixel coordinates: " +Arrays.toString(coordinates));
         int tlx = pointPair.getFirst().getFirst(); int tly = pointPair.getFirst().getSecond();
-        int brx = pointPair.getFirst().getSecond(); int bry = pointPair.getSecond().getSecond();
+        int brx = pointPair.getSecond().getFirst(); int bry = pointPair.getSecond().getSecond();
 
         // draw square over map
         // draw a red quadrilateral around the current frame in the mosaic

@@ -46,9 +46,9 @@ public class DroneLocation {
         // load several databases with different scales
         ArrayList<LocationFromMap> locationObjects = new ArrayList<>();
         locationObjects.add( new LocationFromMap(5));
-//        locationObjects.add( new LocationFromMap(6, WHOLE_MAP_LOCATION));
-//        locationObjects.add( new LocationFromMap(8, WHOLE_MAP_LOCATION));
-//        locationObjects.add( new LocationFromMap(11, WHOLE_MAP_LOCATION));
+        locationObjects.add( new LocationFromMap(6));
+        locationObjects.add( new LocationFromMap(8));
+        locationObjects.add( new LocationFromMap(11));
         // display gui windows
         MapGui mapGui = new MapGui();// gui for displaying map with red square for match
         VideoGui videoGui = new VideoGui(firstframe);
@@ -81,9 +81,10 @@ public class DroneLocation {
                 mapGui.clearGui();
 
                 // get and draw match
-                for(var l : locationObjects){
+                for(int i = 0; i < locationObjects.size(); i++){
 //                    matches.add(l.getMatchesArray(frame));
-                    mapGui.updateGui(l.getMatchesArray(frame, new Pair<Integer,Integer>(349,446)).get(0), Color.BLUE);
+                    // use mspaint to get point
+                    mapGui.updateGui(locationObjects.get(i).getMatchesArray(frame, new Pair<Integer,Integer>(349,446)).get(0), colors.get(i));
                 }
             }
 //            if(num_frames % SKIPPED_FRAMES != 0){

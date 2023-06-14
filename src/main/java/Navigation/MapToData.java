@@ -22,16 +22,7 @@ as well as other useful things
  */
 public class MapToData {
 
-    public static Pair<Pair<Integer,Integer>,Pair<Integer,Integer>> tileNameToCoordinate(String name){
-        String[] coordStr = name.split("_")[2].split("-");
-        int[] coordinates = Arrays.stream(coordStr).mapToInt(Integer::parseInt).toArray();
-        return new Pair<>(new Pair<>(coordinates[0], coordinates[1]), new Pair<>(coordinates[2], coordinates[3]));
-    }
-    public static Pair<Integer,Integer> tileNameToRowCol(String name){
-        String[] coordStr = name.split("_")[1].split("-");
-        int[] rowCol = Arrays.stream(coordStr).mapToInt(Integer::parseInt).toArray();
-        return new Pair<>(rowCol[0], rowCol[1]);
-    }
+
 
     public static boolean tileContainsPoint(String name, Pair<Integer,Integer> point){
         Pair<Pair<Integer,Integer>,Pair<Integer,Integer>> coordinates = tileNameToCoordinate(name);
@@ -69,8 +60,18 @@ public class MapToData {
     map is split into n*k tiles. row, column correspond to n,k.
     two points represent square's top left and bottom right corners.
      */
-    public static String tileCoordinatesToName(int row, int col, int startX, int startY, int endX, int endY, String fileType){
-        return "tile_"+ row + "-"+ col + "_" + startX + "-" + startY + "-" + endX + "-" + endY + fileType;
+    public static String tileCoordinatesToName(int row, int col, int startX, int startY, int endX, int endY){
+        return "tile_"+ row + "-"+ col + "_" + startX + "-" + startY + "-" + endX + "-" + endY + TYPE_IMAGE_TRAIN;
+    }
+    public static Pair<Pair<Integer,Integer>,Pair<Integer,Integer>> tileNameToCoordinate(String name){
+        String[] coordStr = name.split("_")[2].split("-");
+        int[] coordinates = Arrays.stream(coordStr).mapToInt(Integer::parseInt).toArray();
+        return new Pair<>(new Pair<>(coordinates[0], coordinates[1]), new Pair<>(coordinates[2], coordinates[3]));
+    }
+    public static Pair<Integer,Integer> tileNameToRowCol(String name){
+        String[] coordStr = name.split("_")[1].split("-");
+        int[] rowCol = Arrays.stream(coordStr).mapToInt(Integer::parseInt).toArray();
+        return new Pair<>(rowCol[0], rowCol[1]);
     }
     public static void splitMapAndSave(int numTiles){
         BufferedImage bufferedImage = UtilImageIO.loadImageNotNull(MAP_LOCATION);/* Load or obtain the image */;
@@ -111,7 +112,7 @@ public class MapToData {
                 GrayU8 tile = image.subimage(startX, startY, endX, endY, null);
 //				String tileName = "square_{left}-{upper}-{right}-{lower}" + imagesTrainSuffix;
                 // important ot have _ and - in right places. name unimportant
-                String tileName = MapToData.tileCoordinatesToName(x , y ,startX, startY, endX, endY, TYPE_IMAGE_TRAIN);
+                String tileName = MapToData.tileCoordinatesToName(x , y ,startX, startY, endX, endY);
 
                 // save image in path
                 try {
