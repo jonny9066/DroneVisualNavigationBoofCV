@@ -1,13 +1,19 @@
 package Navigation;
 
+import boofcv.gui.image.ImageGridPanel;
 import boofcv.io.MediaManager;
+import boofcv.io.image.ConvertBufferedImage;
 import boofcv.io.image.SimpleImageSequence;
 import boofcv.io.wrapper.DefaultMediaManager;
 import boofcv.struct.image.GrayF32;
 import boofcv.struct.image.ImageType;
 import boofcv.struct.image.Planar;
 
+
 import java.awt.*;
+import java.awt.image.BufferedImage;
+
+import static Navigation.ImageUtils.shrinkImage;
 
 /*
 Takes video footage, height and direction.
@@ -32,8 +38,9 @@ public class DroneLocation {
                 media.openVideo(fileName, ImageType.pl(3, GrayF32.class));
 
 
+        Planar<GrayF32> firstframe = shrinkImage(video.next(), 2);
         // create our location detection objects
-        MotionFromMosiac motionFromMosiac = new MotionFromMosiac(video.next()); // init on first frame
+//        MotionFromMosiac motionFromMosiac = new MotionFromMosiac(firstframe); // init on first frame
         // loads a map with a database, make sure corresponds to video
         // load several databases with different scales
         LocationFromMap locationFromMap1 = new LocationFromMap(5, WHOLE_MAP_LOCATION);
@@ -42,18 +49,20 @@ public class DroneLocation {
         LocationFromMap locationFromMap4 = new LocationFromMap(8, WHOLE_MAP_LOCATION);
         // display gui windows for both mathods for debugging
         MapGui mapGui = new MapGui(WHOLE_MAP_LOCATION);// gui for displaying map with red square for match
+        VideoGui videoGui = new VideoGui(firstframe);
+        videoGui.display();
         mapGui.display();
-        motionFromMosiac.displayGui();
-        mapGui.display();
+//        motionFromMosiac.displayGui();
 
         // traverse whole video
         int num_frames = 0;
         while(video.hasNext()){
-            Planar<GrayF32> frame = video.next();
+            Planar<GrayF32> frame = shrinkImage(video.next(), 2);
+            videoGui.update(ConvertBufferedImage.convertTo(frame,null, true));
             // update mosiac
-            if(!motionFromMosiac.processFrame(frame)){
-                throw new RuntimeException("failed to process frame "+ num_frames);
-            }
+//            if(!motionFromMosiac.processFrame(frame)){
+//                throw new RuntimeException("failed to process frame "+ num_frames);
+//            }
             if(num_frames%300 == 0){
                 System.out.println("frame"+num_frames);
             }

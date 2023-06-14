@@ -48,6 +48,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Logger;
 
+import static Navigation.ImageUtils.savePlanar_F32;
+import static Navigation.ImageUtils.shrinkImage;
+
 /**
  * Example of how to create a mosaic from a video sequence using StitchingFromMotion2D. Mosaics work best
  * when the scene being observed is far away or a flat surface. The camera motion should typically be rotational only,
@@ -265,15 +268,7 @@ public class MotionFromMosiac {
 //		Point2D_F64 d = corners.d;
 		return new Point2D_F64((a.x+c.x)/2, (a.y+c.y)/2);
 	}
-	public static void saveImage(BufferedImage image, String outputPath) throws IOException {
-		File outputFile = new File(outputPath);
 
-		// Get the file extension from the output path
-		String formatName = outputPath.substring(outputPath.lastIndexOf('.') + 1);
-
-		// Save the image to the specified file
-		ImageIO.write(image, formatName, outputFile);
-	}
 
 	/**
 	 * Checks to see if the point is near the image border and tells which border to expand
@@ -315,21 +310,7 @@ public class MotionFromMosiac {
 		BOTLEFT,
 		BOTRIGHT
 	}
-	private static Planar<GrayF32> shrinkImage(Planar<GrayF32> image, int shrinkFactor){
-		Planar<GrayF32> shrunkImage = new Planar<>(GrayF32.class, image.width / shrinkFactor, image.height / shrinkFactor, image.getNumBands());
-		AverageDownSampleOps.down(image, shrunkImage);
-		return shrunkImage;
-	}
-	private static void savePlanar_F32(Planar<GrayF32> image, String name){
-		try {
-					BufferedImage imageRegularFormat = ConvertBufferedImage.convertTo_F32(image, null, true);
-			// Save the image to disk
-			saveImage(imageRegularFormat, "resources/output_mosiac/" + name);
-			logger.info("saved image: " + name);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+
 	private enum TimesEnlarged{
 		NEVER,
 		ONCE,
