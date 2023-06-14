@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.example;
+package Navigation;
 
 import boofcv.abst.feature.detect.interest.ConfigPointDetector;
 import boofcv.abst.feature.detect.interest.PointDetectorTypes;

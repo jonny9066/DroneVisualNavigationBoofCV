@@ -1,6 +1,5 @@
-package org.example;
+package Navigation;
 
-import boofcv.gui.image.ImageGridPanel;
 import boofcv.io.MediaManager;
 import boofcv.io.image.SimpleImageSequence;
 import boofcv.io.wrapper.DefaultMediaManager;
@@ -9,7 +8,6 @@ import boofcv.struct.image.ImageType;
 import boofcv.struct.image.Planar;
 
 import java.awt.*;
-import java.util.ArrayList;
 
 /*
 Takes video footage, height and direction.

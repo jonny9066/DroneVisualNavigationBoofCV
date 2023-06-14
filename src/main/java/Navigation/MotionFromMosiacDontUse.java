@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.example;
+package Navigation;
 
 import boofcv.abst.feature.detect.interest.ConfigPointDetector;
 import boofcv.abst.feature.detect.interest.PointDetectorTypes;
@@ -46,7 +46,6 @@ import java.awt.image.BufferedImage;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.logging.Logger;
 /**
  * Example of how to create a mosaic from a video sequence using StitchingFromMotion2D. Mosaics work best

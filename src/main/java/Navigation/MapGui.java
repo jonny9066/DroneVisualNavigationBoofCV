@@ -1,4 +1,4 @@
-package org.example;
+package Navigation;
 
 import boofcv.abst.scene.SceneRecognition;
 import boofcv.gui.image.ImageGridPanel;

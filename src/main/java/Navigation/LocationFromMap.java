@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.example;
+package Navigation;
 
 import boofcv.BoofVerbose;
 import boofcv.abst.scene.ConfigFeatureToSceneRecognition;
@@ -24,7 +24,6 @@ import boofcv.abst.scene.SceneRecognition;
 import boofcv.abst.scene.WrapFeatureToSceneRecognition;
 import boofcv.factory.scene.FactorySceneRecognition;
 import boofcv.gui.ListDisplayPanel;
-import boofcv.gui.image.ImageGridPanel;
 import boofcv.gui.image.ScaleOptions;
 import boofcv.gui.image.ShowImages;
 import boofcv.io.UtilIO;
@@ -41,7 +40,6 @@ import org.apache.commons.io.FilenameUtils;
 import org.ddogleg.struct.DogArray;
 
 import javax.imageio.ImageIO;
-import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
