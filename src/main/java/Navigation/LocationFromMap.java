@@ -128,7 +128,8 @@ public class LocationFromMap {
 		imageTrainIterator.reset();
 		while (imageTrainIterator.hasNext()) {
 			GrayU8 image = imageTrainIterator.next();
-			recognizer.addImage(imagesTrain.get(imageTrainIterator.getIndex()), image);
+			String imgName = FilenameUtils.getBaseName(new File(imagesTrain.get(imageTrainIterator.getIndex())).getName());
+			recognizer.addImage(imgName, image);
 		}
 
 		// This saves the model with the image database to disk

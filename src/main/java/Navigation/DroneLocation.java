@@ -83,7 +83,7 @@ public class DroneLocation {
                 // get and draw match
                 for(var l : locationObjects){
 //                    matches.add(l.getMatchesArray(frame));
-                    mapGui.updateGui(l.getMatchesArray(frame, new Pair<Integer,Integer>(0,0)).get(0), Color.BLUE);
+                    mapGui.updateGui(l.getMatchesArray(frame, new Pair<Integer,Integer>(349,446)).get(0), Color.BLUE);
                 }
             }
 //            if(num_frames % SKIPPED_FRAMES != 0){
