@@ -20,6 +20,7 @@ public class VideoGui {
     }
     public void update(BufferedImage frame){
         gui.setImage(0, 0, frame);
+        gui.repaint();
 
     }
     public void update(Planar<GrayF32> frame){
