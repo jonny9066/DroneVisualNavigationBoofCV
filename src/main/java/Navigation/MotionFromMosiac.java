@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.example;
+package Navigation;
 
 import boofcv.abst.feature.detect.interest.ConfigPointDetector;
 import boofcv.abst.feature.detect.interest.PointDetectorTypes;
@@ -47,6 +47,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Logger;
+
+import static Navigation.ImageUtils.savePlanar_F32;
+import static Navigation.ImageUtils.shrinkImage;
 
 /**
  * Example of how to create a mosaic from a video sequence using StitchingFromMotion2D. Mosaics work best
@@ -211,7 +214,7 @@ public class MotionFromMosiac {
 	}
 
 
-	public void displayMosiac(){
+	public void displayGui(){
 		ShowImages.showWindow(gui, "Example Mosaic", true);
 	}
 
@@ -220,7 +223,36 @@ public class MotionFromMosiac {
 		savePlanar_F32(stitch.getStitchedImage(), filename);
 	}
 	public static void main( String[] args ) {
+		// Load an image sequence
+		MediaManager media = DefaultMediaManager.INSTANCE;
 
+		String fileName = "resources/vid_parking_drone.mp4";
+		SimpleImageSequence<Planar<GrayF32>> video =
+				media.openVideo(fileName, ImageType.pl(3, GrayF32.class));
+
+		// create our location detection objects
+		MotionFromMosiac motionFromMosiac = new MotionFromMosiac(video.next());
+		motionFromMosiac.displayGui(); // display gui window
+
+		int num_frames = 0;
+		while(video.hasNext()){
+			if(!motionFromMosiac.processFrame(video.next())){
+				throw new RuntimeException("failed to process frame "+ num_frames);
+			}
+			num_frames ++;
+			if(num_frames%300 == 0){
+				System.out.println("frame"+num_frames);
+			}
+//            if(num_frames % SKIPPED_FRAMES != 0){
+//                video.next();
+//                num_frames ++;
+//                continue;
+//            }
+//
+//            if(num_frames %SKIPPED_FRAMES*LOCATION_LOG_FREQ == 0) {
+//                //TODO get location
+//            }
+		}
 
 	}
 
@@ -236,15 +268,7 @@ public class MotionFromMosiac {
 //		Point2D_F64 d = corners.d;
 		return new Point2D_F64((a.x+c.x)/2, (a.y+c.y)/2);
 	}
-	public static void saveImage(BufferedImage image, String outputPath) throws IOException {
-		File outputFile = new File(outputPath);
 
-		// Get the file extension from the output path
-		String formatName = outputPath.substring(outputPath.lastIndexOf('.') + 1);
-
-		// Save the image to the specified file
-		ImageIO.write(image, formatName, outputFile);
-	}
 
 	/**
 	 * Checks to see if the point is near the image border and tells which border to expand
@@ -286,21 +310,7 @@ public class MotionFromMosiac {
 		BOTLEFT,
 		BOTRIGHT
 	}
-	private static Planar<GrayF32> shrinkImage(Planar<GrayF32> image, int shrinkFactor){
-		Planar<GrayF32> shrunkImage = new Planar<>(GrayF32.class, image.width / shrinkFactor, image.height / shrinkFactor, image.getNumBands());
-		AverageDownSampleOps.down(image, shrunkImage);
-		return shrunkImage;
-	}
-	private static void savePlanar_F32(Planar<GrayF32> image, String name){
-		try {
-					BufferedImage imageRegularFormat = ConvertBufferedImage.convertTo_F32(image, null, true);
-			// Save the image to disk
-			saveImage(imageRegularFormat, "resources/output_mosiac/" + name);
-			logger.info("saved image: " + name);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+
 	private enum TimesEnlarged{
 		NEVER,
 		ONCE,
