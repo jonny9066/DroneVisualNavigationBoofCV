@@ -100,13 +100,16 @@ public class ExampleVideoMosaic {
 
 
         // Create the GUI for displaying the results + input image
-        ImageGridPanel gui = new ImageGridPanel(1, 2);
+        ImageGridPanel gui = new ImageGridPanel(1, 1);
+        ImageGridPanel mosaic = new ImageGridPanel(1, 1);
         // (0,0) for input, (0,1) for mosiac.
         gui.setImage(0, 0, new BufferedImage(frame.width, frame.height, BufferedImage.TYPE_INT_RGB));
-        gui.setImage(0, 1, new BufferedImage(frame.width, frame.height, BufferedImage.TYPE_INT_RGB));
-        gui.setPreferredSize(new Dimension(3 * frame.width, frame.height * 2));
+        mosaic.setImage(0, 0, new BufferedImage(frame.width, frame.height, BufferedImage.TYPE_INT_RGB));
+        gui.setPreferredSize(new Dimension(frame.width, frame.height));
+        mosaic.setPreferredSize(new Dimension(frame.width, frame.height));
 
         ShowImages.showWindow(gui, "Example Mosaic", true);
+        ShowImages.showWindow(mosaic, "Example Mosaic", true);
 
         boolean enlarged = false;
 
@@ -125,10 +128,10 @@ public class ExampleVideoMosaic {
             }
             // display the mosaic
             ConvertBufferedImage.convertTo(frame, gui.getImage(0, 0), true);
-            ConvertBufferedImage.convertTo(stitch.getStitchedImage(), gui.getImage(0, 1), true);
+            ConvertBufferedImage.convertTo(stitch.getStitchedImage(), mosaic.getImage(0, 0), true);
 
             // draw a red quadrilateral around the current frame in the mosaic
-            Graphics2D g2 = gui.getImage(0, 1).createGraphics();
+            Graphics2D g2 = mosaic.getImage(0, 0).createGraphics();
             g2.setColor(Color.RED);
             g2.drawLine((int) corners.a.x, (int) corners.a.y, (int) corners.b.x, (int) corners.b.y);
             g2.drawLine((int) corners.b.x, (int) corners.b.y, (int) corners.c.x, (int) corners.c.y);
@@ -136,6 +139,7 @@ public class ExampleVideoMosaic {
             g2.drawLine((int) corners.d.x, (int) corners.d.y, (int) corners.a.x, (int) corners.a.y);
 
             gui.repaint();
+            mosaic.repaint();
 
             // throttle the speed just in case it's on a fast computer
             BoofMiscOps.pause(50);

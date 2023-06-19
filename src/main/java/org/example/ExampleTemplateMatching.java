@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package boofcv.examples.recognition;
+package org.example;
 
 import boofcv.alg.misc.ImageStatistics;
 import boofcv.alg.misc.PixelMath;
@@ -26,7 +26,6 @@ import boofcv.factory.template.FactoryTemplateMatching;
 import boofcv.factory.template.TemplateScoreType;
 import boofcv.gui.image.ShowImages;
 import boofcv.gui.image.VisualizeImageData;
-import boofcv.io.UtilIO;
 import boofcv.io.image.ConvertBufferedImage;
 import boofcv.io.image.UtilImageIO;
 import boofcv.struct.feature.Match;
