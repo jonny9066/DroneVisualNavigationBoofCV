@@ -65,7 +65,7 @@ public class GPSVideoTest {
         MediaManager media = DefaultMediaManager.INSTANCE;
 //		String fileName = UtilIO.pathExample("mosaic/airplane01.mjpeg");
 //        String fileName = "resources/ariel.mp4";
-        String fileName = "resources/drone_foot_trim.mp4";
+        String fileName = "resources/DJI_0520.MP4";
         SimpleImageSequence<Planar<GrayF32>> video = media.openVideo(fileName, ImageType.pl(3, GrayF32.class));
 
         Planar<GrayF32> frame = video.next();
