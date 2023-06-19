@@ -228,9 +228,9 @@ public class ExampleImageStitching {
 
     public static void main(String[] args) {
         BufferedImage imageA, imageB;
-        imageA = UtilImageIO.loadImageNotNull("resources/stitch_in/8.png");
+        imageA = UtilImageIO.loadImageNotNull("resources/stitch_in/1.png");
 
-        imageB = UtilImageIO.loadImageNotNull("resources/stitch_in/9.png");
+        imageB = UtilImageIO.loadImageNotNull("resources/stitch_in/2.png");
 
         stitch(imageA, imageB, GrayF32.class);
 //		imageA = UtilImageIO.loadImageNotNull(UtilIO.pathExample("stitch/mountain_rotate_01.jpg"));
