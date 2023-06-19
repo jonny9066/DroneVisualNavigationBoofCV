@@ -1,3 +1,0 @@
-visualdepth.yaml
-rgb.mjpeg
-depth.mpng
