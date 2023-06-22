@@ -8,6 +8,7 @@ import boofcv.abst.feature.detect.interest.ConfigPointDetector;
 import boofcv.abst.feature.detect.interest.PointDetectorTypes;
 import boofcv.abst.sfm.d2.ImageMotion2D;
 import boofcv.abst.sfm.d2.PlToGrayMotion2D;
+import boofcv.abst.tracker.ConfigTrackerHybrid;
 import boofcv.abst.tracker.PointTracker;
 import boofcv.alg.descriptor.UtilFeature;
 import boofcv.alg.distort.ImageDistort;
@@ -15,6 +16,7 @@ import boofcv.alg.distort.PixelTransformHomography_F32;
 import boofcv.alg.distort.impl.DistortSupport;
 import boofcv.alg.interpolate.InterpolatePixelS;
 import boofcv.alg.sfm.d2.StitchingFromMotion2D;
+import boofcv.alg.tracker.klt.ConfigPKlt;
 import boofcv.factory.feature.associate.ConfigAssociateGreedy;
 import boofcv.factory.feature.associate.FactoryAssociation;
 import boofcv.factory.feature.detdesc.FactoryDetectDescribe;
@@ -30,6 +32,7 @@ import boofcv.io.image.ConvertBufferedImage;
 import boofcv.io.image.SimpleImageSequence;
 import boofcv.io.image.UtilImageIO;
 import boofcv.io.wrapper.DefaultMediaManager;
+import boofcv.struct.ConfigLength;
 import boofcv.struct.border.BorderType;
 import boofcv.struct.feature.AssociatedIndex;
 import boofcv.struct.feature.TupleDesc;
@@ -39,6 +42,7 @@ import boofcv.struct.image.GrayF32;
 import boofcv.struct.image.ImageGray;
 import boofcv.struct.image.ImageType;
 import boofcv.struct.image.Planar;
+import boofcv.struct.pyramid.ConfigDiscreteLevels;
 import georegression.struct.homography.Homography2D_F64;
 import georegression.struct.point.Point2D_F64;
 import georegression.struct.point.Point2D_I32;
@@ -56,23 +60,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class StitchingBasedPositioning {
-    private static final int SKIP_FRAMES = 10;
+    private static final int SKIP_FRAMES = 2;
     private static int frameCounter = 0;
 
     public static void main(String[] args) {
-        // Configure the feature detector
-        ConfigPointDetector configDetector = new ConfigPointDetector();
-        configDetector.type = PointDetectorTypes.SHI_TOMASI;
-        configDetector.general.maxFeatures = 1000;
-        configDetector.general.radius = 2;
-        configDetector.general.threshold = 1;
+        ConfigPKlt kltConfig = new ConfigPKlt();
+        ConfigPointDetector pdConfig = new ConfigPointDetector();
 
-        // Use a KLT tracker
-        PointTracker<GrayF32> tracker = FactoryPointTracker.klt(8, configDetector, 3, GrayF32.class, GrayF32.class);
-
+        PointTracker<GrayF32> tracker = FactoryPointTracker.klt(kltConfig, pdConfig, GrayF32.class, GrayF32.class);
         // This estimates the 2D image motion
         // An Affine2D_F64 model also works quite well.
-        ImageMotion2D<GrayF32, Homography2D_F64> motion2D = FactoryMotion2D.createMotion2D(1000, 3, 2, 30, 0.6, 0.5, false, tracker, new Homography2D_F64());
+        ImageMotion2D<GrayF32, Homography2D_F64> motion2D = FactoryMotion2D.createMotion2D(220, 3, 2, 30, 0.6, 0.5, false, tracker, new Homography2D_F64());
 
         // wrap it so it output color images while estimating motion from gray
         ImageMotion2D<Planar<GrayF32>, Homography2D_F64> motion2DColor = new PlToGrayMotion2D<>(motion2D, GrayF32.class);
@@ -80,7 +78,7 @@ public class StitchingBasedPositioning {
         // This fuses the images together
         StitchingFromMotion2D<Planar<GrayF32>, Homography2D_F64> stitch = FactoryMotion2D.createVideoStitch(0.5, motion2DColor, ImageType.pl(3, GrayF32.class));
 
-        String mapPath = "resources/ariel_map.jpg";
+        String mapPath = "resources/1_map.JPG";
         BufferedImage map = UtilImageIO.loadImage(mapPath);
         Planar<GrayF32> boofMap = ConvertBufferedImage.convertFromPlanar(map, null, true, GrayF32.class);
 
@@ -92,7 +90,7 @@ public class StitchingBasedPositioning {
         Font font = new Font("Arial", Font.BOLD, 16);
 
         MediaManager media = DefaultMediaManager.INSTANCE;
-        String fileName = "resources/ariel_heigher_vid.mp4";
+        String fileName = "resources/1 (trimmed).mp4";
         SimpleImageSequence<Planar<GrayF32>> video = media.openVideo(fileName, ImageType.pl(3, GrayF32.class));
 
         if (video == null) {
@@ -100,6 +98,8 @@ public class StitchingBasedPositioning {
         }
 
         Planar<GrayF32> frame = video.next();
+        Planar<GrayF32> previous_frame = frame.clone();
+
         Homography2D_F64 shrink = new Homography2D_F64(0.5, 0, frame.width / 4, 0, 0.5, frame.height / 4, 0, 0, 1);
         shrink = shrink.invert(null);
 
@@ -107,22 +107,28 @@ public class StitchingBasedPositioning {
         // To change this into stabilization just make it the same size as the input with no shrink.
         stitch.configure(frame.width, frame.height, shrink);
 
-        ImageGridPanel gui = new ImageGridPanel(1, 2);
+
+        ImageGridPanel gui = new ImageGridPanel(1, 1);
         ImageGridPanel mapPanel = new ImageGridPanel(1, 1);
+        ImageGridPanel stitchingUI = new ImageGridPanel(1, 1);
 
         gui.setImage(0, 0, new BufferedImage(frame.width, frame.height, BufferedImage.TYPE_INT_RGB));
-        gui.setImage(0, 1, new BufferedImage(frame.width, frame.height, BufferedImage.TYPE_INT_RGB));
+        stitchingUI.setImage(0, 0, new BufferedImage(frame.width, frame.height, BufferedImage.TYPE_INT_RGB));
         mapPanel.setImage(0, 0, map);
 
         gui.setPreferredSize(new Dimension(frame.width, frame.height));
+        stitchingUI.setPreferredSize(new Dimension(frame.width, frame.height));
         mapPanel.setPreferredSize(new Dimension(map.getWidth(), map.getHeight()));
 
-        ShowImages.showWindow(gui, "Live Video and Stitching", true);
+        ShowImages.showWindow(gui, "Live Video", true);
         ShowImages.showWindow(mapPanel, "Map", true);
+        ShowImages.showWindow(stitchingUI, "Stitching", true);
+
         int x = -1;
         int y = -1;
         while (video.hasNext()) {
             frame = video.next();
+//            frame = adjustSaturation(frame, 0.72f);
             BufferedImage bufferedCurrentFrame = ConvertBufferedImage.convertTo_F32(frame, null, true);
 
             if (frameCounter % SKIP_FRAMES == 0) {
@@ -136,9 +142,12 @@ public class StitchingBasedPositioning {
 
                 boolean mapSuccess = stitch.process(boofMap);
                 boolean frameSuccess = stitch.process(frame);
+
+//                previous_frame = frame.clone();
+                stitch.setOriginToCurrent();
                 if (frameSuccess && mapSuccess) {
                     BufferedImage bufferedStitchedImage = ConvertBufferedImage.convertTo_F32(stitch.getStitchedImage(), null, true);
-                    gui.setImage(0, 1, bufferedStitchedImage);
+                    stitchingUI.setImage(0, 0, bufferedStitchedImage);
                     Homography2D_F64 currentToWorld = stitch.getWorldToCurr().invert(null);
                     Point2D_F64 center = new Point2D_F64(frame.width / 2.0, frame.height / 2.0);
                     Point2D_F64 imageCoords = HomographyPointOps_F64.transform(currentToWorld, center, null);
@@ -146,6 +155,7 @@ public class StitchingBasedPositioning {
                     x = (int) imageCoords.x;
                     y = (int) imageCoords.y;
 
+                    mapGraphics.setColor(Color.GREEN);
                     mapGraphics.drawString("Stitching Success!", 10, 20);
                 } else {
                     mapGraphics.drawString("Stitching Failed!", 10, 20);
@@ -158,6 +168,7 @@ public class StitchingBasedPositioning {
 
                 mapPanel.setImage(0, 0, mapCopy);
                 mapPanel.repaint();
+                stitchingUI.repaint();
             }
 
             gui.setImage(0, 0, bufferedCurrentFrame);
@@ -304,6 +315,38 @@ public class StitchingBasedPositioning {
         boolean isAlphaPremultiplied = cm.isAlphaPremultiplied();
         WritableRaster raster = bi.copyData(null);
         return new BufferedImage(cm, raster, isAlphaPremultiplied, null);
+    }
+
+    public static Planar<GrayF32> adjustSaturation(Planar<GrayF32> image, float saturationFactor) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+
+        // Create a new Planar<GrayF32> image to store the modified image
+        Planar<GrayF32> saturatedImage = new Planar<>(GrayF32.class, width, height, image.getNumBands());
+
+        // Iterate over each pixel in the image
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                // Get the pixel value
+                float[] pixel = new float[]{
+                        image.getBand(0).get(x, y),
+                        image.getBand(1).get(x, y),
+                        image.getBand(2).get(x, y)
+                };
+
+                // Adjust the saturation component of each band
+                for (int band = 0; band < image.getNumBands(); band++) {
+                    pixel[band] *= saturationFactor;
+                }
+
+                // Set the modified pixel value in the new image
+                saturatedImage.getBand(0).set(x, y, pixel[0]);
+                saturatedImage.getBand(1).set(x, y, pixel[1]);
+                saturatedImage.getBand(2).set(x, y, pixel[2]);
+            }
+        }
+
+        return saturatedImage;
     }
 
 }
